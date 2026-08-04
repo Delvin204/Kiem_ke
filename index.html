@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Kiểm Kê Nhanh</title>
+    <!-- Thư viện SheetJS để đọc file Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
+            --primary-hover: #4338ca;
             --success-bg: #d1fae5;
             --success-text: #065f46;
             --warning-bg: #fef3c7;
@@ -29,10 +32,60 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        h2 { text-align: center; margin-top: 0; }
+        h2 { text-align: center; margin-top: 0; color: #111827; }
         
+        /* Khu vực nhập dữ liệu */
+        .data-setup {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .data-setup h3 { margin-top: 0; font-size: 16px; margin-bottom: 10px; }
+        .setup-controls {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        textarea {
+            flex: 1;
+            height: 80px;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .file-upload-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input[type="file"] {
+            border: 1px solid #cbd5e1;
+            padding: 8px;
+            border-radius: 6px;
+            background: white;
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--primary-hover); }
+        button.btn-clear { background: #ef4444; }
+        button.btn-clear:hover { background: #dc2626; }
+
+        /* Khu vực kiểm kê chính */
         .input-group { margin-bottom: 20px; }
-        input[type="text"] {
+        input[type="text"].main-input {
             width: 100%;
             padding: 15px;
             font-size: 18px;
@@ -41,8 +94,10 @@
             box-sizing: border-box;
             outline: none;
             transition: border-color 0.2s;
+            background: #fff;
         }
-        input[type="text"]:focus { border-color: var(--primary); }
+        input[type="text"].main-input:focus { border-color: var(--primary); }
+        input[type="text"].main-input:disabled { background: #e5e7eb; cursor: not-allowed; }
 
         #toast {
             padding: 12px 15px;
@@ -50,16 +105,13 @@
             margin-bottom: 20px;
             font-weight: 600;
             text-align: center;
-            display: none; /* Ẩn mặc định */
+            display: none;
         }
         .show-success { display: block !important; background: var(--success-bg); color: var(--success-text); }
         .show-warning { display: block !important; background: var(--warning-bg); color: var(--warning-text); }
         .show-error { display: block !important; background: var(--error-bg); color: var(--error-text); }
 
-        .columns {
-            display: flex;
-            gap: 20px;
-        }
+        .columns { display: flex; gap: 20px; }
         .col {
             flex: 1;
             background: #f9fafb;
@@ -67,26 +119,9 @@
             border-radius: 8px;
             padding: 15px;
         }
-        h3 {
-            margin-top: 0;
-            font-size: 16px;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 10px;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        li {
-            padding: 10px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            margin-bottom: 8px;
-            border-radius: 4px;
-        }
+        .col h3 { margin-top: 0; font-size: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+        ul { list-style: none; padding: 0; margin: 0; max-height: 400px; overflow-y: auto; }
+        li { padding: 10px; background: white; border: 1px solid #e5e7eb; margin-bottom: 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -94,8 +129,24 @@
 <div class="app-container">
     <h2>Hệ Thống Kiểm Kê</h2>
     
+    <!-- KHU VỰC NHẬP DỮ LIỆU ĐẦU VÀO -->
+    <div class="data-setup">
+        <h3>1. Nạp danh sách cần kiểm kê</h3>
+        <div class="setup-controls">
+            <textarea id="paste-data" placeholder="Dán danh sách vào đây (mỗi mã 1 dòng)..."></textarea>
+            <div class="file-upload-wrapper">
+                <input type="file" id="file-upload" accept=".xlsx, .xls, .csv">
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-import">Nạp dữ liệu</button>
+                    <button id="btn-clear" class="btn-clear">Xóa làm lại</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHU VỰC QUÉT / NHẬP MÃ KIỂM KÊ -->
     <div class="input-group">
-        <input type="text" id="item-input" placeholder="Nhập dữ liệu (VD: SP001) và nhấn Enter..." autofocus>
+        <input type="text" id="item-input" class="main-input" placeholder="2. Nhập mã hoặc dùng máy quét mã vạch và nhấn Enter..." disabled>
     </div>
 
     <div id="toast"></div>
@@ -113,32 +164,28 @@
 </div>
 
 <script>
-    // Dữ liệu mẫu ban đầu (Bạn có thể thay đổi danh sách này)
-    let pendingItems = ['SP001', 'SP002', 'SP003', 'SP004', 'SP005', 'Laptop01', 'Chuot02'];
+    let pendingItems = [];
     let checkedItems = [];
 
     const inputEl = document.getElementById('item-input');
     const toastEl = document.getElementById('toast');
     let toastTimeout;
 
-    // Hàm hiển thị thông báo
+    // --- CÁC HÀM TIỆN ÍCH ---
     function showToast(message, typeClass) {
         toastEl.textContent = message;
         toastEl.className = typeClass; 
-        
         clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => {
             toastEl.className = ''; 
             toastEl.style.display = 'none';
-        }, 3000); // Ẩn sau 3 giây
+        }, 3000);
     }
 
-    // Hàm cập nhật giao diện danh sách
     function renderLists() {
         const pendingUl = document.getElementById('pending-list');
         const checkedUl = document.getElementById('checked-list');
         
-        // Render chờ kiểm
         pendingUl.innerHTML = '';
         pendingItems.forEach(item => {
             let li = document.createElement('li');
@@ -147,7 +194,6 @@
         });
         document.getElementById('pending-count').textContent = pendingItems.length;
 
-        // Render đã kiểm
         checkedUl.innerHTML = '';
         checkedItems.forEach(item => {
             let li = document.createElement('li');
@@ -155,39 +201,103 @@
             checkedUl.appendChild(li);
         });
         document.getElementById('checked-count').textContent = checkedItems.length;
+
+        // Bật/tắt ô nhập liệu dựa trên việc có data hay không
+        if (pendingItems.length > 0 || checkedItems.length > 0) {
+            inputEl.disabled = false;
+        } else {
+            inputEl.disabled = true;
+        }
     }
 
-    // Xử lý sự kiện khi nhấn phím
+    function addDataToPending(newItems) {
+        // Lọc bỏ các dòng trống và loại bỏ khoảng trắng thừa
+        const cleanItems = newItems.map(item => String(item).trim()).filter(item => item !== "");
+        if (cleanItems.length === 0) {
+            alert("Không tìm thấy dữ liệu hợp lệ!");
+            return;
+        }
+        
+        // Gộp dữ liệu mới vào danh sách chờ (loại bỏ trùng lặp nếu cần)
+        pendingItems = [...new Set([...pendingItems, ...cleanItems])];
+        
+        renderLists();
+        document.getElementById('paste-data').value = ''; // Clear ô paste
+        document.getElementById('file-upload').value = ''; // Clear ô file
+        
+        showToast(`Đã nạp ${cleanItems.length} mã vào danh sách!`, 'show-success');
+        inputEl.focus(); // Tự động trỏ chuột vào ô quét mã
+    }
+
+    // --- SỰ KIỆN NẠP DỮ LIỆU ---
+    document.getElementById('btn-import').addEventListener('click', () => {
+        const fileInput = document.getElementById('file-upload');
+        const textAreaVal = document.getElementById('paste-data').value;
+
+        // Ưu tiên đọc file Excel nếu người dùng có chọn file
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                // Đọc sheet đầu tiên
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                // Chuyển dữ liệu sheet thành mảng 2 chiều
+                const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                
+                // Lấy dữ liệu ở cột đầu tiên (cột A)
+                const excelItems = json.map(row => row[0]);
+                addDataToPending(excelItems);
+            };
+            reader.readAsArrayBuffer(file);
+        } 
+        // Nếu không có file thì đọc từ ô Textarea
+        else if (textAreaVal.trim() !== '') {
+            const textItems = textAreaVal.split('\n');
+            addDataToPending(textItems);
+        } else {
+            alert("Vui lòng dán danh sách hoặc chọn file Excel/CSV!");
+        }
+    });
+
+    // --- SỰ KIỆN XÓA DỮ LIỆU ---
+    document.getElementById('btn-clear').addEventListener('click', () => {
+        if(confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu đang kiểm kê?")) {
+            pendingItems = [];
+            checkedItems = [];
+            renderLists();
+            document.getElementById('paste-data').value = '';
+            document.getElementById('file-upload').value = '';
+            showToast("Đã xóa trắng dữ liệu!", 'show-warning');
+        }
+    });
+
+    // --- SỰ KIỆN KIỂM KÊ (NHẤN ENTER) ---
     inputEl.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             const val = inputEl.value.trim();
-            if (!val) return; // Không làm gì nếu ô nhập rỗng
+            if (!val) return;
 
-            // 1. Kiểm tra xem có trong danh sách chờ không
             if (pendingItems.includes(val)) {
-                // Xóa khỏi danh sách chờ, thêm vào danh sách đã kiểm
                 pendingItems = pendingItems.filter(item => item !== val);
-                checkedItems.unshift(val); // Thêm lên đầu danh sách đã kiểm
-                
-                showToast(`Thành công: Đã kiểm kê [${val}]`, 'show-success');
+                checkedItems.unshift(val); 
+                showToast(`Thành công: [${val}]`, 'show-success');
                 renderLists();
-            } 
-            // 2. Kiểm tra xem đã từng kiểm kê chưa (bị trùng)
-            else if (checkedItems.includes(val)) {
-                showToast(`Trùng lặp: [${val}] đã được kiểm kê trước đó!`, 'show-warning');
-            } 
-            // 3. Không có trong dữ liệu
-            else {
-                showToast(`Lỗi: Không tìm thấy [${val}] trong danh sách!`, 'show-error');
+            } else if (checkedItems.includes(val)) {
+                showToast(`Trùng lặp: [${val}] đã quét rồi!`, 'show-warning');
+            } else {
+                showToast(`Lỗi: Không có [${val}] trong danh sách!`, 'show-error');
             }
 
-            // Đặt lại ô nhập và focus
             inputEl.value = '';
             inputEl.focus();
         }
     });
 
-    // Khởi tạo giao diện ban đầu
+    // Khởi tạo ban đầu
     renderLists();
 </script>
 
