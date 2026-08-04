@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Kiểm Kê Nhanh</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success-bg: #d1fae5;
+            --success-text: #065f46;
+            --warning-bg: #fef3c7;
+            --warning-text: #92400e;
+            --error-bg: #fee2e2;
+            --error-text: #991b1b;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+            color: #1f2937;
+        }
+        .app-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        h2 { text-align: center; margin-top: 0; }
+        
+        .input-group { margin-bottom: 20px; }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--primary); }
+
+        #toast {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            display: none; /* Ẩn mặc định */
+        }
+        .show-success { display: block !important; background: var(--success-bg); color: var(--success-text); }
+        .show-warning { display: block !important; background: var(--warning-bg); color: var(--warning-text); }
+        .show-error { display: block !important; background: var(--error-bg); color: var(--error-text); }
+
+        .columns {
+            display: flex;
+            gap: 20px;
+        }
+        .col {
+            flex: 1;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        h3 {
+            margin-top: 0;
+            font-size: 16px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        li {
+            padding: 10px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h2>Hệ Thống Kiểm Kê</h2>
+    
+    <div class="input-group">
+        <input type="text" id="item-input" placeholder="Nhập dữ liệu (VD: SP001) và nhấn Enter..." autofocus>
+    </div>
+
+    <div id="toast"></div>
+
+    <div class="columns">
+        <div class="col">
+            <h3>Danh sách chờ kiểm (<span id="pending-count">0</span>)</h3>
+            <ul id="pending-list"></ul>
+        </div>
+        <div class="col">
+            <h3>Đã kiểm kê (<span id="checked-count">0</span>)</h3>
+            <ul id="checked-list"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dữ liệu mẫu ban đầu (Bạn có thể thay đổi danh sách này)
+    let pendingItems = ['SP001', 'SP002', 'SP003', 'SP004', 'SP005', 'Laptop01', 'Chuot02'];
+    let checkedItems = [];
+
+    const inputEl = document.getElementById('item-input');
+    const toastEl = document.getElementById('toast');
+    let toastTimeout;
+
+    // Hàm hiển thị thông báo
+    function showToast(message, typeClass) {
+        toastEl.textContent = message;
+        toastEl.className = typeClass; 
+        
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toastEl.className = ''; 
+            toastEl.style.display = 'none';
+        }, 3000); // Ẩn sau 3 giây
+    }
+
+    // Hàm cập nhật giao diện danh sách
+    function renderLists() {
+        const pendingUl = document.getElementById('pending-list');
+        const checkedUl = document.getElementById('checked-list');
+        
+        // Render chờ kiểm
+        pendingUl.innerHTML = '';
+        pendingItems.forEach(item => {
+            let li = document.createElement('li');
+            li.textContent = item;
+            pendingUl.appendChild(li);
+        });
+        document.getElementById('pending-count').textContent = pendingItems.length;
+
+        // Render đã kiểm
+        checkedUl.innerHTML = '';
+        checkedItems.forEach(item => {
+            let li = document.createElement('li');
+            li.textContent = item;
+            checkedUl.appendChild(li);
+        });
+        document.getElementById('checked-count').textContent = checkedItems.length;
+    }
+
+    // Xử lý sự kiện khi nhấn phím
+    inputEl.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const val = inputEl.value.trim();
+            if (!val) return; // Không làm gì nếu ô nhập rỗng
+
+            // 1. Kiểm tra xem có trong danh sách chờ không
+            if (pendingItems.includes(val)) {
+                // Xóa khỏi danh sách chờ, thêm vào danh sách đã kiểm
+                pendingItems = pendingItems.filter(item => item !== val);
+                checkedItems.unshift(val); // Thêm lên đầu danh sách đã kiểm
+                
+                showToast(`Thành công: Đã kiểm kê [${val}]`, 'show-success');
+                renderLists();
+            } 
+            // 2. Kiểm tra xem đã từng kiểm kê chưa (bị trùng)
+            else if (checkedItems.includes(val)) {
+                showToast(`Trùng lặp: [${val}] đã được kiểm kê trước đó!`, 'show-warning');
+            } 
+            // 3. Không có trong dữ liệu
+            else {
+                showToast(`Lỗi: Không tìm thấy [${val}] trong danh sách!`, 'show-error');
+            }
+
+            // Đặt lại ô nhập và focus
+            inputEl.value = '';
+            inputEl.focus();
+        }
+    });
+
+    // Khởi tạo giao diện ban đầu
+    renderLists();
+</script>
+
+</body>
+</html>
