@@ -1,0 +1,25 @@
+========================================================================
+  TRẠM BẮN MÃ VẠCH ĐA CHẾ ĐỘ (CHIẾU QR/CODE128 + ANDROID WEBUSB ADB)
+========================================================================
+
+CÁC FILE TRONG THƯ MỤC:
+1. barcode_scanner_dual_mode.html : Ứng dụng Web 2 tab (dùng chung danh sách Excel).
+2. mo_web.bat & serve_web.ps1     : Mở trang web trên http://127.0.0.1:8080 (không cần .exe, không cần Admin).
+3. danh_sach_mau.xlsx             : File Excel mẫu (5 mã, số lượng 2, 1, 3, 2, 4).
+
+------------------------------------------------------------------------
+TAB 1: CHIẾU MÃ QR / MÃ VẠCH (CHO SÚNG QUÉT LIÊN TỤC — DÙNG ĐƯỢC CẢ iOS & ANDROID)
+------------------------------------------------------------------------
+- Có thể click đúp mở trực tiếp file "barcode_scanner_dual_mode.html" (hoặc mở qua mo_web.bat).
+- Kết nối súng bắn mã vạch Bluetooth với iPhone/Android, bật chế độ đọc liên tục trên súng.
+- Kéo thả file Excel vào cột bên trái, chọn QR Code (khuyên dùng) hoặc Code 128.
+- Chỉnh thời gian hiện mã (mặc định 1200ms) và thời gian ngắt trắng/đen giữa 2 lượt (400ms)
+  để súng nhận diện chính xác kể cả khi lặp lại cùng 1 mã nhiều lần.
+- Bấm "Toàn màn hình" để chiếu mã rõ nét nhất và đặt súng hướng thẳng vào màn hình.
+
+------------------------------------------------------------------------
+TAB 2: ANDROID CẮM CÁP (WEBUSB ADB — KHÔNG CẦN ADB.EXE)
+------------------------------------------------------------------------
+- Bắt buộc mở bằng file "mo_web.bat" trên trình duyệt Chrome hoặc Edge (vì WebUSB chỉ chạy trên localhost/https).
+- Bật Gỡ lỗi USB trên điện thoại Android, cắm cáp, chuyển sang Tab 2 và bấm "Kết nối điện thoại Android".
+- Nếu điện thoại báo lỗi quyền (như INJECT_EVENTS trên Xiaomi), nhật ký sẽ hiển thị rõ dòng lỗi màu đỏ.
