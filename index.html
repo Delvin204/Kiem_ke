@@ -1,1454 +1,1895 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trạm Bắn Mã Vạch Đa Chế Độ — QR/Code128 &amp; Android WebUSB</title>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <style>
-    :root {
-      --bg: #0b1120;
-      --panel: #151e31;
-      --panel-2: #0d1526;
-      --border: #293548;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --primary: #3b82f6;
-      --primary-soft: rgba(59, 130, 246, 0.16);
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --radius: 12px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.48;
-    }
-    .container { max-width: 1380px; margin: 0 auto; padding: 18px 20px 28px; }
-
-    /* HEADER & TOP MODE TABS */
-    header {
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: 14px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
-    }
-    .brand h1 { margin: 0; font-size: 1.32rem; display: flex; align-items: center; gap: 10px; }
-    .brand p { margin: 3px 0 0; font-size: 0.85rem; color: var(--muted); }
-
-    .mode-tabs {
-      display: inline-flex; gap: 6px; padding: 5px;
-      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    }
-    .mode-tab {
-      border: none; background: transparent; color: var(--muted);
-      padding: 9px 16px; border-radius: 8px; cursor: pointer;
-      font-weight: 700; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;
-      transition: 0.15s;
-    }
-    .mode-tab:hover { color: var(--text); }
-    .mode-tab.active { background: var(--primary); color: #fff; box-shadow: 0 2px 10px rgba(59,130,246,0.35); }
-
-    /* LAYOUT */
-    .layout { display: grid; grid-template-columns: 390px 1fr; gap: 18px; align-items: start; }
-    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
-
-    .card {
-      background: var(--panel); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 15px; margin-bottom: 16px;
-    }
-    .card h2 {
-      margin: 0 0 12px; font-size: 0.98rem;
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    }
-
-    /* INPUTS & BUTTONS */
-    .sub-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-    .sub-tab {
-      flex: 1; padding: 7px 10px; border: 1px solid var(--border);
-      background: var(--panel-2); color: var(--muted); border-radius: 8px;
-      cursor: pointer; font-weight: 600; font-size: 0.83rem;
-    }
-    .sub-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-
-    .dropzone {
-      border: 2px dashed var(--border); border-radius: 10px; padding: 20px 14px;
-      text-align: center; cursor: pointer; transition: 0.15s; background: var(--panel-2);
-    }
-    .dropzone:hover, .dropzone.dragover {
-      border-color: var(--primary); background: var(--primary-soft);
-    }
-    .dropzone p { margin: 5px 0 0; font-size: 0.82rem; color: var(--muted); }
-
-    textarea {
-      width: 100%; min-height: 105px; background: var(--panel-2); color: var(--text);
-      border: 1px solid var(--border); border-radius: 8px; padding: 9px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.83rem; resize: vertical;
-    }
-
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-      padding: 8px 13px; border-radius: 8px; border: 1px solid transparent;
-      font-weight: 600; font-size: 0.86rem; cursor: pointer; transition: 0.15s;
-      color: #fff; background: var(--primary);
-    }
-    .btn:hover:not(:disabled) { filter: brightness(1.1); }
-    .btn:disabled { opacity: 0.42; cursor: not-allowed; }
-    .btn-success { background: var(--success); }
-    .btn-warning { background: var(--warning); color: #0f172a; }
-    .btn-danger { background: var(--danger); }
-    .btn-ghost { background: var(--panel-2); border-color: var(--border); color: var(--text); }
-    .btn-sm { padding: 5px 10px; font-size: 0.79rem; }
-    .btn-full { width: 100%; }
-    .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-
-    /* SHARED PROGRESS & TABLE */
-    .stats-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
-    .stat-box {
-      background: var(--panel-2); border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px; text-align: center;
-    }
-    .stat-box .val { font-size: 1.08rem; font-weight: 700; }
-    .stat-box .lbl { font-size: 0.73rem; color: var(--muted); }
-
-    .progress-wrap {
-      background: var(--panel-2); border-radius: 999px; height: 10px;
-      overflow: hidden; border: 1px solid var(--border); margin: 8px 0 5px;
-    }
-    .progress-bar {
-      height: 100%; width: 0%;
-      background: linear-gradient(90deg, var(--primary), var(--success));
-      transition: width 0.2s;
-    }
-    .pointer-row {
-      display: flex; justify-content: space-between; gap: 8px;
-      font-size: 0.8rem; color: var(--muted); margin-bottom: 10px;
-    }
-
-    .table-wrap {
-      max-height: 330px; overflow-y: auto; border: 1px solid var(--border);
-      border-radius: 8px; background: var(--panel-2);
-    }
-    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-    th, td { padding: 7px 9px; border-bottom: 1px solid var(--border); text-align: left; }
-    th { position: sticky; top: 0; background: #172236; z-index: 2; color: var(--muted); font-weight: 600; }
-    tr.selectable { cursor: pointer; }
-    tr.selectable:hover { background: rgba(59, 130, 246, 0.13); }
-    tr.active-row { background: rgba(59, 130, 246, 0.25) !important; }
-    tr.done-row { opacity: 0.55; }
-    .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
-    .b-wait { background: #334155; color: #cbd5e1; }
-    .b-run { background: #1d4ed8; color: #fff; }
-    .b-pause { background: #b45309; color: #fff; }
-    .b-done { background: #047857; color: #fff; }
-
-    /* FORM CONTROLS */
-    .settings-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 10px; margin-bottom: 12px;
-    }
-    .field {
-      background: var(--panel-2); border: 1px solid var(--border);
-      border-radius: 8px; padding: 9px 11px;
-    }
-    .field label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 5px; }
-    .field select, .field input[type="number"], .field input[type="range"] {
-      width: 100%; background: var(--panel); color: var(--text);
-      border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 0.86rem;
-    }
-    .field input[type="range"] { padding: 0; border: none; background: transparent; }
-
-    .toggles-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 0.85rem; }
-    .toggle-item { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-
-    /* TAB 1: QR / BARCODE STAGE */
-    .stage-shell {
-      position: relative;
-      background: #ffffff;
-      border-radius: 14px;
-      min-height: 430px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 36px 28px;
-      border: 3px solid var(--border);
-      transition: background 0.08s;
-      overflow: hidden;
-    }
-    .stage-shell.blank-black { background: #000000 !important; }
-    .stage-shell.blank-white { background: #ffffff !important; }
-    .stage-code-wrap {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 24px; background: #ffffff; border-radius: 8px;
-    }
-    .stage-placeholder {
-      color: #64748b; text-align: center; font-size: 0.96rem; max-width: 420px;
-    }
-    .stage-countdown {
-      font-size: 5rem; font-weight: 800; color: #0f172a; line-height: 1;
-    }
-    .stage-caption {
-      margin-top: 16px; text-align: center; color: #0f172a;
-    }
-    .stage-caption .code-text {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 1.35rem; font-weight: 800; letter-spacing: 0.04em;
-    }
-    .stage-caption .meta-text {
-      font-size: 0.9rem; color: #475569; margin-top: 3px; font-weight: 600;
-    }
-    .stage-shell.hide-caption .stage-caption { display: none; }
-
-    /* Fullscreen floating bar */
-    .fs-float-bar {
-      display: none;
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.9); border: 1px solid #334155;
-      padding: 10px 14px; border-radius: 999px; gap: 8px; align-items: center;
-      z-index: 9999; backdrop-filter: blur(8px);
-    }
-    .stage-shell:fullscreen {
-      border-radius: 0; border: none; width: 100vw; height: 100vh; padding: 48px;
-    }
-    .stage-shell:fullscreen .fs-float-bar { display: flex; }
-
-    /* TAB 2: WEBUSB */
-    .pill {
-      display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
-      border-radius: 999px; font-size: 0.82rem; font-weight: 600;
-      background: var(--panel-2); border: 1px solid var(--border);
-    }
-    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); }
-    .dot.ok { background: var(--success); box-shadow: 0 0 8px var(--success); }
-    .dot.warn { background: var(--warning); }
-
-    .banner-warn {
-      display: none; background: rgba(245, 158, 11, 0.14); border: 1px solid var(--warning);
-      color: #fde68a; border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; font-size: 0.85rem;
-    }
-    .banner-warn.show { display: block; }
-
-    .usb-box {
-      background: var(--panel-2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px; margin-bottom: 12px;
-    }
-    .usb-meta { font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
-
-    .sim-phone {
-      margin-top: 10px; background: #020617; border: 2px solid var(--primary);
-      border-radius: 12px; padding: 12px; display: none;
-    }
-    .sim-phone.show { display: block; }
-    .sim-input {
-      width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--success);
-      background: #0f172a; color: #fff; font-family: monospace; font-size: 0.95rem; margin-bottom: 8px;
-    }
-    .sim-list { max-height: 110px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; color: #a7f3d0; }
-
-    .log-box {
-      background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px; height: 170px; overflow-y: auto;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.79rem;
-    }
-    .log-line { margin-bottom: 4px; word-break: break-word; white-space: pre-wrap; }
-    .log-ok { color: #34d399; }
-    .log-err { color: #f87171; }
-    .log-info { color: #93c5fd; }
-    .log-warn { color: #fbbf24; }
-
-    .hint { font-size: 0.79rem; color: var(--muted); margin-top: 6px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <div class="brand">
-        <h1>📡 Trạm Bắn Mã Vạch Đa Chế Độ</h1>
-        <p>Nạp 1 danh sách Excel — Dùng chung cho cả Chiếu QR/Mã vạch (súng quét liên tục) và Android WebUSB ADB</p>
-      </div>
-      <div class="mode-tabs" role="tablist">
-        <button class="mode-tab active" id="modeTabQr" role="tab" aria-selected="true">
-          📷 Chiếu mã QR / Mã vạch
-        </button>
-        <button class="mode-tab" id="modeTabUsb" role="tab" aria-selected="false">
-          🔌 Android cắm cáp (WebUSB)
-        </button>
-      </div>
-    </header>
-
-    <div class="layout">
-      <!-- CỘT TRÁI DÙNG CHUNG: NẠP FILE & DANH SÁCH -->
-      <div>
-        <div class="card">
-          <h2>
-            <span>1. Nạp danh sách mã</span>
-            <button class="btn btn-ghost btn-sm" id="btnSample">⬇ File mẫu (.xlsx)</button>
-          </h2>
-          <div class="sub-tabs">
-            <button class="sub-tab active" id="subTabFile">📂 Kéo thả Excel / CSV</button>
-            <button class="sub-tab" id="subTabPaste">📋 Dán từ Excel</button>
-          </div>
-
-          <div id="panelFile">
-            <div class="dropzone" id="dropzone">
-              <strong>Kéo thả .xlsx, .xls, .csv, .txt vào đây</strong>
-              <p>hoặc bấm để chọn file (Cột 1: Mã vạch, Cột 2: Số lượng)</p>
-              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" />
-            </div>
-          </div>
-
-          <div id="panelPaste" style="display:none">
-            <textarea id="pasteInput" placeholder="Dán 2 cột Mã và Số lượng từ Excel...&#10;8934563138165	2&#10;SP-2026-0001	3"></textarea>
-            <div class="row-actions">
-              <button class="btn btn-sm" id="btnParsePaste">Nạp danh sách đã dán</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>
-            <span>2. Tiến độ &amp; Danh sách</span>
-            <span style="font-size:0.78rem;color:var(--muted)" id="listSummary">0 dòng</span>
-          </h2>
-          <div class="stats-3">
-            <div class="stat-box">
-              <div class="val" id="statRows">0</div>
-              <div class="lbl">Số dòng</div>
-            </div>
-            <div class="stat-box">
-              <div class="val" id="statScans">0 / 0</div>
-              <div class="lbl">Lượt đã phát</div>
-            </div>
-            <div class="stat-box">
-              <div class="val" id="statState">Sẵn sàng</div>
-              <div class="lbl">Trạng thái</div>
-            </div>
-          </div>
-
-          <div class="progress-wrap">
-            <div class="progress-bar" id="progressBar"></div>
-          </div>
-          <div class="pointer-row">
-            <span id="currentPointerText">Chưa nạp danh sách</span>
-            <strong id="progressPct">0%</strong>
-          </div>
-
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:42px">#</th>
-                  <th>Mã vạch</th>
-                  <th style="width:74px">Lượt</th>
-                  <th style="width:86px">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody">
-                <tr>
-                  <td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">
-                    Chưa có dữ liệu. Hãy nạp file Excel hoặc dán ở mục trên.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="hint">
-            💡 Khi đang dừng, <strong>click vào bất kỳ dòng nào</strong> để chọn bắn tiếp từ dòng đó.
-          </div>
-        </div>
-      </div>
-
-      <!-- CỘT PHẢI: TAB 1 (CHIẾU QR / MÃ VẠCH) -->
-      <div id="viewQr">
-        <div class="card">
-          <h2>
-            <span>3. Điều khiển chiếu mã cho súng quét liên tục</span>
-            <button class="btn btn-ghost btn-sm" id="btnFullscreen">⛶ Toàn màn hình</button>
-          </h2>
-
-          <div class="settings-grid">
-            <div class="field">
-              <label for="qrType">Loại mã hiển thị</label>
-              <select id="qrType">
-                <option value="QR" selected>QR Code (2D — Khuyên dùng)</option>
-                <option value="CODE128">Code 128 (Mã vạch 1D)</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="qrShowMs">Thời gian hiện mỗi mã (ms)</label>
-              <input type="number" id="qrShowMs" value="1200" min="200" max="10000" step="100" />
-            </div>
-            <div class="field">
-              <label for="qrBlankMs">Thời gian ngắt giữa 2 lượt (ms)</label>
-              <input type="number" id="qrBlankMs" value="400" min="0" max="3000" step="50" />
-            </div>
-            <div class="field">
-              <label for="qrBlankStyle">Kiểu ngắt giữa 2 lượt</label>
-              <select id="qrBlankStyle">
-                <option value="white" selected>Chớp trắng (sạch màn hình)</option>
-                <option value="black">Chớp đen (kích cảm biến tốt hơn)</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="qrCountdown">Đếm ngược trước khi chiếu (giây)</label>
-              <input type="number" id="qrCountdown" value="3" min="0" max="15" step="1" />
-            </div>
-            <div class="field">
-              <label for="qrSize">Kích thước mã: <strong id="qrSizeVal">300px</strong></label>
-              <input type="range" id="qrSize" min="180" max="460" step="10" value="300" />
-            </div>
-          </div>
-
-          <div class="toggles-row">
-            <label class="toggle-item"><input type="checkbox" id="qrBeep" checked /> 🔊 Tiếng "bíp" mỗi lượt</label>
-            <label class="toggle-item"><input type="checkbox" id="qrHideCaption" /> 🙈 Ẩn chữ dưới mã (tránh nhiễu mắt đọc)</label>
-          </div>
-
-          <div class="row-actions" style="margin-bottom:14px;">
-            <button class="btn btn-success" id="btnQrStart" disabled>▶ Bắt đầu chiếu</button>
-            <button class="btn btn-warning" id="btnQrPause" disabled>⏸ Tạm dừng</button>
-            <button class="btn btn-ghost" id="btnQrStep" disabled>⚡ Hiện 1 lượt (Test)</button>
-            <button class="btn btn-danger" id="btnQrReset" disabled>↺ Làm lại từ đầu</button>
-          </div>
-
-          <!-- SÂN KHẤU CHIẾU MÃ -->
-          <div class="stage-shell" id="qrStage">
-            <div id="qrStageContent">
-              <div class="stage-placeholder">
-                Nạp danh sách Excel bên trái rồi bấm <strong>Bắt đầu chiếu</strong>.<br />
-                Đặt súng bắn mã vạch (chế độ đọc liên tục) chĩa vào vùng trắng này.
-              </div>
-            </div>
-
-            <!-- Thanh điều khiển nổi khi ở chế độ Toàn màn hình -->
-            <div class="fs-float-bar">
-              <button class="btn btn-success btn-sm" id="fsStart">▶ Tiếp tục</button>
-              <button class="btn btn-warning btn-sm" id="fsPause">⏸ Tạm dừng</button>
-              <button class="btn btn-ghost btn-sm" id="fsStep">⚡ 1 lượt</button>
-              <button class="btn btn-danger btn-sm" id="fsExit">✕ Thoát toàn màn hình</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CỘT PHẢI: TAB 2 (ANDROID CẮM CÁP WEBUSB) -->
-      <div id="viewUsb" style="display:none">
-        <div class="banner-warn" id="usbContextWarn">
-          ⚠️ <strong>WebUSB đang bị khóa</strong> vì bạn mở trực tiếp qua <code>file://</code> hoặc không dùng Chrome/Edge.
-          Hãy chạy file <strong>mo_web.bat</strong> (không chứa .exe) để mở trang trên <code>http://127.0.0.1:8080</code> bằng <strong>Chrome</strong> hoặc <strong>Edge</strong>.
-        </div>
-
-        <div class="card">
-          <h2>
-            <span>3. Kết nối Android (WebUSB ADB)</span>
-            <span class="pill">
-              <span class="dot" id="usbDot"></span>
-              <span id="usbStatusText">Chưa kết nối</span>
-            </span>
-          </h2>
-
-          <div class="usb-box">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn" id="btnConnectUsb">🔌 Kết nối điện thoại Android</button>
-              <button class="btn btn-danger" id="btnDisconnectUsb" style="display:none">Ngắt kết nối</button>
-            </div>
-            <div class="usb-meta" id="usbMeta">
-              Cắm cáp USB (đã bật Gỡ lỗi USB trên Android) rồi bấm nút Kết nối.
-            </div>
-          </div>
-
-          <div class="settings-grid">
-            <div class="field">
-              <label for="usbDelayMs">Độ trễ mỗi lượt (ms)</label>
-              <input type="number" id="usbDelayMs" value="500" min="100" max="5000" step="50" />
-            </div>
-            <div class="field">
-              <label for="usbEndKey">Phím kết thúc sau mã</label>
-              <select id="usbEndKey">
-                <option value="ENTER" selected>Enter (keyevent 66)</option>
-                <option value="TAB">Tab (keyevent 61)</option>
-                <option value="NONE">Không bấm phím</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="toggles-row">
-            <label class="toggle-item"><input type="checkbox" id="usbBeep" checked /> 🔊 Tiếng "bíp"</label>
-            <label class="toggle-item"><input type="checkbox" id="usbSim" /> 🧪 Chế độ chạy thử trên Web (Sandbox)</label>
-          </div>
-
-          <div class="sim-phone" id="simPhone">
-            <div style="font-size:0.79rem;color:#93c5fd;margin-bottom:6px;">Màn hình Android giả lập (Sandbox)</div>
-            <input type="text" class="sim-input" id="simInput" placeholder="Ô nhận mã vạch..." readonly />
-            <div class="sim-list" id="simList"></div>
-          </div>
-
-          <div class="row-actions">
-            <button class="btn btn-success" id="btnUsbStart" disabled>▶ Bắt đầu bắn</button>
-            <button class="btn btn-warning" id="btnUsbPause" disabled>⏸ Tạm dừng</button>
-            <button class="btn btn-ghost" id="btnUsbStep" disabled>⚡ Bắn 1 lượt (Test)</button>
-            <button class="btn btn-danger" id="btnUsbReset" disabled>↺ Làm lại từ đầu</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>
-            <span>Nhật ký WebUSB &amp; Phản hồi từ Android</span>
-            <button class="btn btn-ghost btn-sm" id="btnClearLog">Xóa log</button>
-          </h2>
-          <div class="log-box" id="logBox"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // =========================================================================
-    // 1. TRẠNG THÁI DÙNG CHUNG CHO CẢ 2 TAB
-    // =========================================================================
-    let activeTab = "qr"; // "qr" | "usb"
-    let items = [];       // [{ code, qty, done }]
-    let curRow = 0;
-    let curRepeat = 0;    // 0-based within items[curRow]
-    let isRunning = false;
-    let isPaused = false;
-    let stopFlag = false;
-    let sleepTimer = null;
-    let sleepResolve = null;
-
-    function cancellableSleep(ms) {
-      return new Promise((resolve) => {
-        if (ms <= 0 || stopFlag) return resolve();
-        sleepResolve = resolve;
-        sleepTimer = setTimeout(() => {
-          sleepTimer = null;
-          sleepResolve = null;
-          resolve();
-        }, ms);
-      });
-    }
-    function cancelCurrentSleep() {
-      if (sleepTimer) {
-        clearTimeout(sleepTimer);
-        sleepTimer = null;
-      }
-      if (sleepResolve) {
-        const r = sleepResolve;
-        sleepResolve = null;
-        r();
-      }
-    }
-
-    // Audio beep
-    let audioCtx = null;
-    function playBeep(enabled) {
-      if (!enabled) return;
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = "sine";
-        osc.frequency.value = 1850;
-        gain.gain.value = 0.08;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.055);
-      } catch (e) {}
-    }
-
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, (m) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-      }[m]));
-    }
-
-    // Logging (for Tab 2)
-    const logBox = document.getElementById("logBox");
-    function addLog(msg, type = "info") {
-      const div = document.createElement("div");
-      const t = new Date().toLocaleTimeString("vi-VN", { hour12: false });
-      div.className = "log-line log-" + type;
-      div.textContent = `[${t}] ${msg}`;
-      logBox.appendChild(div);
-      logBox.scrollTop = logBox.scrollHeight;
-    }
-    document.getElementById("btnClearLog").onclick = () => (logBox.innerHTML = "");
-
-    // =========================================================================
-    // 2. CHUYỂN TAB CHÍNH (TỰ ĐỘNG TẠM DỪNG AN TOÀN)
-    // =========================================================================
-    const modeTabQr = document.getElementById("modeTabQr");
-    const modeTabUsb = document.getElementById("modeTabUsb");
-    const viewQr = document.getElementById("viewQr");
-    const viewUsb = document.getElementById("viewUsb");
-
-    function switchMainTab(target) {
-      if (activeTab === target) return;
-      if (isRunning) {
-        stopFlag = true;
-        cancelCurrentSleep();
-        addLog("Tự động tạm dừng do chuyển tab.", "warn");
-      }
-      activeTab = target;
-      modeTabQr.classList.toggle("active", target === "qr");
-      modeTabUsb.classList.toggle("active", target === "usb");
-      modeTabQr.setAttribute("aria-selected", target === "qr");
-      modeTabUsb.setAttribute("aria-selected", target === "usb");
-      viewQr.style.display = target === "qr" ? "" : "none";
-      viewUsb.style.display = target === "usb" ? "" : "none";
-      renderAll();
-    }
-    modeTabQr.onclick = () => switchMainTab("qr");
-    modeTabUsb.onclick = () => switchMainTab("usb");
-
-    // =========================================================================
-    // 3. NẠP FILE EXCEL / CSV / DÁN TỪ EXCEL
-    // =========================================================================
-    const dropzone = document.getElementById("dropzone");
-    const fileInput = document.getElementById("fileInput");
-    const pasteInput = document.getElementById("pasteInput");
-    const tableBody = document.getElementById("tableBody");
-
-    document.getElementById("subTabFile").onclick = () => {
-      document.getElementById("subTabFile").classList.add("active");
-      document.getElementById("subTabPaste").classList.remove("active");
-      document.getElementById("panelFile").style.display = "";
-      document.getElementById("panelPaste").style.display = "none";
-    };
-    document.getElementById("subTabPaste").onclick = () => {
-      document.getElementById("subTabPaste").classList.add("active");
-      document.getElementById("subTabFile").classList.remove("active");
-      document.getElementById("panelPaste").style.display = "";
-      document.getElementById("panelFile").style.display = "none";
-    };
-
-    document.getElementById("btnSample").onclick = () => {
-      if (typeof XLSX === "undefined") {
-        alert("Không tải được thư viện Excel (cần kết nối mạng). Bạn có thể dùng tab 'Dán từ Excel' hoặc mở file danh_sach_mau.xlsx đi kèm.");
-        return;
-      }
-      const ws = XLSX.utils.aoa_to_sheet([
-        ["Ma_Vach", "So_Luong"],
-        ["8934563138165", 2],
-        ["8935049501244", 1],
-        ["SP-2026-0001", 3],
-        ["SP-2026-0002", 2],
-        ["8938505974192", 4],
-      ]);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "DanhSach");
-      XLSX.writeFile(wb, "danh_sach_mau.xlsx");
-    };
-
-    dropzone.onclick = () => fileInput.click();
-    dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add("dragover"); };
-    dropzone.ondragleave = () => dropzone.classList.remove("dragover");
-    dropzone.ondrop = (e) => {
-      e.preventDefault();
-      dropzone.classList.remove("dragover");
-      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-    };
-    fileInput.onchange = (e) => {
-      if (e.target.files.length) handleFile(e.target.files[0]);
-      fileInput.value = "";
-    };
-
-    function handleFile(file) {
-      const ext = file.name.split(".").pop().toLowerCase();
-      if (ext === "txt" || ext === "csv") {
-        const reader = new FileReader();
-        reader.onload = (e) => parseTextData(e.target.result, file.name);
-        reader.readAsText(file, "UTF-8");
-      } else {
-        if (typeof XLSX === "undefined") {
-          alert("Không tải được thư viện đọc Excel (SheetJS). Hãy lưu file dạng .CSV hoặc copy dán vào tab 'Dán từ Excel'.");
-          return;
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trạm Bắn Mã Vạch Đa Chế Độ — QR/Code128 &amp; Android WebUSB</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #151e31;
+            --panel-2: #0d1526;
+            --border: #293548;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-soft: rgba(59, 130, 246, 0.16);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius: 12px;
         }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const data = new Uint8Array(e.target.result);
-          const wb = XLSX.read(data, { type: "array" });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-          loadRows(rows, file.name);
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.48;
+        }
+
+        .container {
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 18px 20px 28px;
+        }
+
+        /* HEADER & TOP MODE TABS */
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 1.32rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand p {
+            margin: 3px 0 0;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .mode-tabs {
+            display: inline-flex;
+            gap: 6px;
+            padding: 5px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .mode-tab {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            padding: 9px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.15s;
+        }
+
+        .mode-tab:hover {
+            color: var(--text);
+        }
+
+        .mode-tab.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.35);
+        }
+
+        /* LAYOUT */
+        .layout {
+            display: grid;
+            grid-template-columns: 390px 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        @media (max-width: 1000px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-size: 0.98rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        /* INPUTS & BUTTONS */
+        .sub-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .sub-tab {
+            flex: 1;
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.83rem;
+        }
+
+        .sub-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 20px 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.15s;
+            background: var(--panel-2);
+        }
+
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+        }
+
+        .dropzone p {
+            margin: 5px 0 0;
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 105px;
+            background: var(--panel-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.83rem;
+            resize: vertical;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 13px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-weight: 600;
+            font-size: 0.86rem;
+            cursor: pointer;
+            transition: 0.15s;
+            color: #fff;
+            background: var(--primary);
+        }
+
+        .btn:hover:not(:disabled) {
+            filter: brightness(1.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #0f172a;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-ghost {
+            background: var(--panel-2);
+            border-color: var(--border);
+            color: var(--text);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.79rem;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        .row-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* SHARED PROGRESS & TABLE */
+        .stats-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .stat-box {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .stat-box .val {
+            font-size: 1.08rem;
+            font-weight: 700;
+        }
+
+        .stat-box .lbl {
+            font-size: 0.73rem;
+            color: var(--muted);
+        }
+
+        .progress-wrap {
+            background: var(--panel-2);
+            border-radius: 999px;
+            height: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin: 8px 0 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            transition: width 0.2s;
+        }
+
+        .pointer-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .table-wrap {
+            max-height: 330px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel-2);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+        }
+
+        th,
+        td {
+            padding: 7px 9px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: #172236;
+            z-index: 2;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        tr.selectable {
+            cursor: pointer;
+        }
+
+        tr.selectable:hover {
+            background: rgba(59, 130, 246, 0.13);
+        }
+
+        tr.active-row {
+            background: rgba(59, 130, 246, 0.25) !important;
+        }
+
+        tr.done-row {
+            opacity: 0.55;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .b-wait {
+            background: #334155;
+            color: #cbd5e1;
+        }
+
+        .b-run {
+            background: #1d4ed8;
+            color: #fff;
+        }
+
+        .b-pause {
+            background: #b45309;
+            color: #fff;
+        }
+
+        .b-done {
+            background: #047857;
+            color: #fff;
+        }
+
+        /* FORM CONTROLS */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .field {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .field select,
+        .field input[type="number"],
+        .field input[type="range"] {
+            width: 100%;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 0.86rem;
+        }
+
+        .field input[type="range"] {
+            padding: 0;
+            border: none;
+            background: transparent;
+        }
+
+        .toggles-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+
+        .toggle-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        /* TAB 1: QR / BARCODE STAGE */
+        .stage-shell {
+            position: relative;
+            background: #ffffff;
+            border-radius: 14px;
+            min-height: 430px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 36px 28px;
+            border: 3px solid var(--border);
+            transition: background 0.08s;
+            overflow: hidden;
+        }
+
+        .stage-shell.blank-black {
+            background: #000000 !important;
+        }
+
+        .stage-shell.blank-white {
+            background: #ffffff !important;
+        }
+
+        .stage-code-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: #ffffff;
+            border-radius: 8px;
+        }
+
+        .stage-placeholder {
+            color: #64748b;
+            text-align: center;
+            font-size: 0.96rem;
+            max-width: 420px;
+        }
+
+        .stage-countdown {
+            font-size: 5rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1;
+        }
+
+        .stage-caption {
+            margin-top: 16px;
+            text-align: center;
+            color: #0f172a;
+        }
+
+        .stage-caption .code-text {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .stage-caption .meta-text {
+            font-size: 0.9rem;
+            color: #475569;
+            margin-top: 3px;
+            font-weight: 600;
+        }
+
+        .stage-shell.hide-caption .stage-caption {
+            display: none;
+        }
+
+        /* Fullscreen floating bar */
+        .fs-float-bar {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #334155;
+            padding: 10px 14px;
+            border-radius: 999px;
+            gap: 8px;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(8px);
+        }
+
+        .stage-shell:fullscreen {
+            border-radius: 0;
+            border: none;
+            width: 100vw;
+            height: 100vh;
+            padding: 48px;
+        }
+
+        .stage-shell:fullscreen .fs-float-bar {
+            display: flex;
+        }
+
+        /* TAB 2: WEBUSB */
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+        }
+
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+
+        .dot.ok {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .dot.warn {
+            background: var(--warning);
+        }
+
+        .banner-warn {
+            display: none;
+            background: rgba(245, 158, 11, 0.14);
+            border: 1px solid var(--warning);
+            color: #fde68a;
+            border-radius: 10px;
+            padding: 11px 14px;
+            margin-bottom: 14px;
+            font-size: 0.85rem;
+        }
+
+        .banner-warn.show {
+            display: block;
+        }
+
+        .usb-box {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .usb-meta {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        .sim-phone {
+            margin-top: 10px;
+            background: #020617;
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 12px;
+            display: none;
+        }
+
+        .sim-phone.show {
+            display: block;
+        }
+
+        .sim-input {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--success);
+            background: #0f172a;
+            color: #fff;
+            font-family: monospace;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .sim-list {
+            max-height: 110px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #a7f3d0;
+        }
+
+        .log-box {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            height: 170px;
+            overflow-y: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.79rem;
+        }
+
+        .log-line {
+            margin-bottom: 4px;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .log-ok {
+            color: #34d399;
+        }
+
+        .log-err {
+            color: #f87171;
+        }
+
+        .log-info {
+            color: #93c5fd;
+        }
+
+        .log-warn {
+            color: #fbbf24;
+        }
+
+        .hint {
+            font-size: 0.79rem;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 390px 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .layout>div {
+            min-width: 0;
+        }
+
+        .usb-box {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .usb-meta {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>📡 Trạm Bắn Mã Vạch Đa Chế Độ</h1>
+                <p>Nạp 1 danh sách Excel — Dùng chung cho cả Chiếu QR/Mã vạch (súng quét liên tục) và Android WebUSB ADB
+                </p>
+            </div>
+            <div class="mode-tabs" role="tablist">
+                <button class="mode-tab active" id="modeTabQr" role="tab" aria-selected="true">
+                    📷 Chiếu mã QR / Mã vạch
+                </button>
+                <button class="mode-tab" id="modeTabUsb" role="tab" aria-selected="false">
+                    🔌 Android cắm cáp (WebUSB)
+                </button>
+            </div>
+        </header>
+
+        <div class="layout">
+            <!-- CỘT TRÁI DÙNG CHUNG: NẠP FILE & DANH SÁCH -->
+            <div>
+                <div class="card">
+                    <h2>
+                        <span>1. Nạp danh sách mã</span>
+                        <button class="btn btn-ghost btn-sm" id="btnSample">⬇ File mẫu (.xlsx)</button>
+                    </h2>
+                    <div class="sub-tabs">
+                        <button class="sub-tab active" id="subTabFile">📂 Kéo thả Excel / CSV</button>
+                        <button class="sub-tab" id="subTabPaste">📋 Dán từ Excel</button>
+                    </div>
+
+                    <div id="panelFile">
+                        <div class="dropzone" id="dropzone">
+                            <strong>Kéo thả .xlsx, .xls, .csv, .txt vào đây</strong>
+                            <p>hoặc bấm để chọn file (Cột 1: Mã vạch, Cột 2: Số lượng)</p>
+                            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" />
+                        </div>
+                    </div>
+
+                    <div id="panelPaste" style="display:none">
+                        <textarea id="pasteInput"
+                            placeholder="Dán 2 cột Mã và Số lượng từ Excel...&#10;8934563138165	2&#10;SP-2026-0001	3"></textarea>
+                        <div class="row-actions">
+                            <button class="btn btn-sm" id="btnParsePaste">Nạp danh sách đã dán</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>
+                        <span>2. Tiến độ &amp; Danh sách</span>
+                        <span style="font-size:0.78rem;color:var(--muted)" id="listSummary">0 dòng</span>
+                    </h2>
+                    <div class="stats-3">
+                        <div class="stat-box">
+                            <div class="val" id="statRows">0</div>
+                            <div class="lbl">Số dòng</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" id="statScans">0 / 0</div>
+                            <div class="lbl">Lượt đã phát</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" id="statState">Sẵn sàng</div>
+                            <div class="lbl">Trạng thái</div>
+                        </div>
+                    </div>
+
+                    <div class="progress-wrap">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="pointer-row">
+                        <span id="currentPointerText">Chưa nạp danh sách</span>
+                        <strong id="progressPct">0%</strong>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:42px">#</th>
+                                    <th>Mã vạch</th>
+                                    <th style="width:74px">Lượt</th>
+                                    <th style="width:86px">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">
+                                        Chưa có dữ liệu. Hãy nạp file Excel hoặc dán ở mục trên.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="hint">
+                        💡 Khi đang dừng, <strong>click vào bất kỳ dòng nào</strong> để chọn bắn tiếp từ dòng đó.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI: TAB 1 (CHIẾU QR / MÃ VẠCH) -->
+            <div id="viewQr">
+                <div class="card">
+                    <h2>
+                        <span>3. Điều khiển chiếu mã cho súng quét liên tục</span>
+                        <button class="btn btn-ghost btn-sm" id="btnFullscreen">⛶ Toàn màn hình</button>
+                    </h2>
+
+                    <div class="settings-grid">
+                        <div class="field">
+                            <label for="qrType">Loại mã hiển thị</label>
+                            <select id="qrType">
+                                <option value="QR" selected>QR Code (2D — Khuyên dùng)</option>
+                                <option value="CODE128">Code 128 (Mã vạch 1D)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="qrShowMs">Thời gian hiện mỗi mã (ms)</label>
+                            <input type="number" id="qrShowMs" value="1200" min="200" max="10000" step="100" />
+                        </div>
+                        <div class="field">
+                            <label for="qrBlankMs">Thời gian ngắt giữa 2 lượt (ms)</label>
+                            <input type="number" id="qrBlankMs" value="400" min="0" max="3000" step="50" />
+                        </div>
+                        <div class="field">
+                            <label for="qrBlankStyle">Kiểu ngắt giữa 2 lượt</label>
+                            <select id="qrBlankStyle">
+                                <option value="white" selected>Chớp trắng (sạch màn hình)</option>
+                                <option value="black">Chớp đen (kích cảm biến tốt hơn)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="qrCountdown">Đếm ngược trước khi chiếu (giây)</label>
+                            <input type="number" id="qrCountdown" value="3" min="0" max="15" step="1" />
+                        </div>
+                        <div class="field">
+                            <label for="qrSize">Kích thước mã: <strong id="qrSizeVal">300px</strong></label>
+                            <input type="range" id="qrSize" min="180" max="460" step="10" value="300" />
+                        </div>
+                    </div>
+
+                    <div class="toggles-row">
+                        <label class="toggle-item"><input type="checkbox" id="qrBeep" checked /> 🔊 Tiếng "bíp" mỗi
+                            lượt</label>
+                        <label class="toggle-item"><input type="checkbox" id="qrHideCaption" /> 🙈 Ẩn chữ dưới mã (tránh
+                            nhiễu mắt đọc)</label>
+                    </div>
+
+                    <div class="row-actions" style="margin-bottom:14px;">
+                        <button class="btn btn-success" id="btnQrStart" disabled>▶ Bắt đầu chiếu</button>
+                        <button class="btn btn-warning" id="btnQrPause" disabled>⏸ Tạm dừng</button>
+                        <button class="btn btn-ghost" id="btnQrStep" disabled>⚡ Hiện 1 lượt (Test)</button>
+                        <button class="btn btn-danger" id="btnQrReset" disabled>↺ Làm lại từ đầu</button>
+                    </div>
+
+                    <!-- SÂN KHẤU CHIẾU MÃ -->
+                    <div class="stage-shell" id="qrStage">
+                        <div id="qrStageContent">
+                            <div class="stage-placeholder">
+                                Nạp danh sách Excel bên trái rồi bấm <strong>Bắt đầu chiếu</strong>.<br />
+                                Đặt súng bắn mã vạch (chế độ đọc liên tục) chĩa vào vùng trắng này.
+                            </div>
+                        </div>
+
+                        <!-- Thanh điều khiển nổi khi ở chế độ Toàn màn hình -->
+                        <div class="fs-float-bar">
+                            <button class="btn btn-success btn-sm" id="fsStart">▶ Tiếp tục</button>
+                            <button class="btn btn-warning btn-sm" id="fsPause">⏸ Tạm dừng</button>
+                            <button class="btn btn-ghost btn-sm" id="fsStep">⚡ 1 lượt</button>
+                            <button class="btn btn-danger btn-sm" id="fsExit">✕ Thoát toàn màn hình</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI: TAB 2 (ANDROID CẮM CÁP WEBUSB) -->
+            <div id="viewUsb" style="display:none">
+                <div class="banner-warn" id="usbContextWarn">
+                    ⚠️ <strong>WebUSB đang bị khóa</strong> vì bạn mở trực tiếp qua <code>file://</code> hoặc không dùng
+                    Chrome/Edge.
+                    Hãy chạy file <strong>mo_web.bat</strong> (không chứa .exe) để mở trang trên
+                    <code>http://127.0.0.1:8080</code> bằng <strong>Chrome</strong> hoặc <strong>Edge</strong>.
+                </div>
+
+                <div class="card">
+                    <h2>
+                        <span>3. Kết nối Android (WebUSB ADB)</span>
+                        <span class="pill">
+                            <span class="dot" id="usbDot"></span>
+                            <span id="usbStatusText">Chưa kết nối</span>
+                        </span>
+                    </h2>
+
+                    <div class="usb-box">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn" id="btnConnectUsb">🔌 Kết nối điện thoại Android</button>
+                            <button class="btn btn-danger" id="btnDisconnectUsb" style="display:none">Ngắt kết
+                                nối</button>
+                        </div>
+                        <div class="usb-meta" id="usbMeta">
+                            Cắm cáp USB (đã bật Gỡ lỗi USB trên Android) rồi bấm nút Kết nối.
+                        </div>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="field">
+                            <label for="usbDelayMs">Độ trễ mỗi lượt (ms)</label>
+                            <input type="number" id="usbDelayMs" value="500" min="100" max="5000" step="50" />
+                        </div>
+                        <div class="field">
+                            <label for="usbEndKey">Phím kết thúc sau mã</label>
+                            <select id="usbEndKey">
+                                <option value="ENTER" selected>Enter (keyevent 66)</option>
+                                <option value="TAB">Tab (keyevent 61)</option>
+                                <option value="NONE">Không bấm phím</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="toggles-row">
+                        <label class="toggle-item"><input type="checkbox" id="usbBeep" checked /> 🔊 Tiếng "bíp"</label>
+                        <label class="toggle-item"><input type="checkbox" id="usbSim" /> 🧪 Chế độ chạy thử trên Web
+                            (Sandbox)</label>
+                    </div>
+
+                    <div class="sim-phone" id="simPhone">
+                        <div style="font-size:0.79rem;color:#93c5fd;margin-bottom:6px;">Màn hình Android giả lập
+                            (Sandbox)</div>
+                        <input type="text" class="sim-input" id="simInput" placeholder="Ô nhận mã vạch..." readonly />
+                        <div class="sim-list" id="simList"></div>
+                    </div>
+
+                    <div class="row-actions">
+                        <button class="btn btn-success" id="btnUsbStart" disabled>▶ Bắt đầu bắn</button>
+                        <button class="btn btn-warning" id="btnUsbPause" disabled>⏸ Tạm dừng</button>
+                        <button class="btn btn-ghost" id="btnUsbStep" disabled>⚡ Bắn 1 lượt (Test)</button>
+                        <button class="btn btn-danger" id="btnUsbReset" disabled>↺ Làm lại từ đầu</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>
+                        <span>Nhật ký WebUSB &amp; Phản hồi từ Android</span>
+                        <button class="btn btn-ghost btn-sm" id="btnClearLog">Xóa log</button>
+                    </h2>
+                    <div class="log-box" id="logBox"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. TRẠNG THÁI DÙNG CHUNG CHO CẢ 2 TAB
+        // =========================================================================
+        let activeTab = "qr"; // "qr" | "usb"
+        let items = [];       // [{ code, qty, done }]
+        let curRow = 0;
+        let curRepeat = 0;    // 0-based within items[curRow]
+        let isRunning = false;
+        let isPaused = false;
+        let stopFlag = false;
+        let sleepTimer = null;
+        let sleepResolve = null;
+
+        function cancellableSleep(ms) {
+            return new Promise((resolve) => {
+                if (ms <= 0 || stopFlag) return resolve();
+                sleepResolve = resolve;
+                sleepTimer = setTimeout(() => {
+                    sleepTimer = null;
+                    sleepResolve = null;
+                    resolve();
+                }, ms);
+            });
+        }
+        function cancelCurrentSleep() {
+            if (sleepTimer) {
+                clearTimeout(sleepTimer);
+                sleepTimer = null;
+            }
+            if (sleepResolve) {
+                const r = sleepResolve;
+                sleepResolve = null;
+                r();
+            }
+        }
+
+        // Audio beep
+        let audioCtx = null;
+        function playBeep(enabled) {
+            if (!enabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.value = 1850;
+                gain.gain.value = 0.08;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.055);
+            } catch (e) { }
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, (m) => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+            }[m]));
+        }
+
+        // Logging (for Tab 2)
+        const logBox = document.getElementById("logBox");
+        function addLog(msg, type = "info") {
+            const div = document.createElement("div");
+            const t = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+            div.className = "log-line log-" + type;
+            div.textContent = `[${t}] ${msg}`;
+            logBox.appendChild(div);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        document.getElementById("btnClearLog").onclick = () => (logBox.innerHTML = "");
+
+        // =========================================================================
+        // 2. CHUYỂN TAB CHÍNH (TỰ ĐỘNG TẠM DỪNG AN TOÀN)
+        // =========================================================================
+        const modeTabQr = document.getElementById("modeTabQr");
+        const modeTabUsb = document.getElementById("modeTabUsb");
+        const viewQr = document.getElementById("viewQr");
+        const viewUsb = document.getElementById("viewUsb");
+
+        function switchMainTab(target) {
+            if (activeTab === target) return;
+            if (isRunning) {
+                stopFlag = true;
+                cancelCurrentSleep();
+                addLog("Tự động tạm dừng do chuyển tab.", "warn");
+            }
+            activeTab = target;
+            modeTabQr.classList.toggle("active", target === "qr");
+            modeTabUsb.classList.toggle("active", target === "usb");
+            modeTabQr.setAttribute("aria-selected", target === "qr");
+            modeTabUsb.setAttribute("aria-selected", target === "usb");
+            viewQr.style.display = target === "qr" ? "" : "none";
+            viewUsb.style.display = target === "usb" ? "" : "none";
+            renderAll();
+        }
+        modeTabQr.onclick = () => switchMainTab("qr");
+        modeTabUsb.onclick = () => switchMainTab("usb");
+
+        // =========================================================================
+        // 3. NẠP FILE EXCEL / CSV / DÁN TỪ EXCEL
+        // =========================================================================
+        const dropzone = document.getElementById("dropzone");
+        const fileInput = document.getElementById("fileInput");
+        const pasteInput = document.getElementById("pasteInput");
+        const tableBody = document.getElementById("tableBody");
+
+        document.getElementById("subTabFile").onclick = () => {
+            document.getElementById("subTabFile").classList.add("active");
+            document.getElementById("subTabPaste").classList.remove("active");
+            document.getElementById("panelFile").style.display = "";
+            document.getElementById("panelPaste").style.display = "none";
         };
-        reader.readAsArrayBuffer(file);
-      }
-    }
+        document.getElementById("subTabPaste").onclick = () => {
+            document.getElementById("subTabPaste").classList.add("active");
+            document.getElementById("subTabFile").classList.remove("active");
+            document.getElementById("panelPaste").style.display = "";
+            document.getElementById("panelFile").style.display = "none";
+        };
 
-    document.getElementById("btnParsePaste").onclick = () => {
-      parseTextData(pasteInput.value, "Dữ liệu dán");
-    };
+        document.getElementById("btnSample").onclick = () => {
+            if (typeof XLSX === "undefined") {
+                alert("Không tải được thư viện Excel (cần kết nối mạng). Bạn có thể dùng tab 'Dán từ Excel' hoặc mở file danh_sach_mau.xlsx đi kèm.");
+                return;
+            }
+            const ws = XLSX.utils.aoa_to_sheet([
+                ["Ma_Vach", "So_Luong"],
+                ["8934563138165", 2],
+                ["8935049501244", 1],
+                ["SP-2026-0001", 3],
+                ["SP-2026-0002", 2],
+                ["8938505974192", 4],
+            ]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "DanhSach");
+            XLSX.writeFile(wb, "danh_sach_mau.xlsx");
+        };
 
-    function parseTextData(text, sourceName) {
-      const lines = text.split(/\r?\n/);
-      const rows = lines.map((l) => l.trim().split(/[\t,;]+/));
-      loadRows(rows, sourceName);
-    }
+        dropzone.onclick = () => fileInput.click();
+        dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add("dragover"); };
+        dropzone.ondragleave = () => dropzone.classList.remove("dragover");
+        dropzone.ondrop = (e) => {
+            e.preventDefault();
+            dropzone.classList.remove("dragover");
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        };
+        fileInput.onchange = (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+            fileInput.value = "";
+        };
 
-    function loadRows(rows, sourceName) {
-      if (isRunning) {
-        stopFlag = true;
-        cancelCurrentSleep();
-      }
-      const parsed = [];
-      for (const r of rows) {
-        if (!r || r.length < 2) continue;
-        const code = String(r[0] ?? "").trim();
-        const qty = parseInt(String(r[1] ?? "").trim(), 10);
-        if (!code || isNaN(qty) || qty <= 0) continue;
-        parsed.push({ code, qty, done: 0 });
-      }
-      if (parsed.length === 0) {
-        alert("Không tìm thấy dữ liệu hợp lệ! Đảm bảo Cột 1 là Mã vạch, Cột 2 là Số lượng (>0).");
-        return;
-      }
-      items = parsed;
-      curRow = 0;
-      curRepeat = 0;
-      isRunning = false;
-      isPaused = false;
-      stopFlag = false;
-      document.getElementById("simList").innerHTML = "";
-      resetQrStagePlaceholder();
-      addLog(`Đã nạp ${items.length} dòng (${getTotalScans()} lượt) từ "${sourceName}".`, "ok");
-      renderAll();
-    }
+        function handleFile(file) {
+            const ext = file.name.split(".").pop().toLowerCase();
+            if (ext === "txt" || ext === "csv") {
+                const reader = new FileReader();
+                reader.onload = (e) => parseTextData(e.target.result, file.name);
+                reader.readAsText(file, "UTF-8");
+            } else {
+                if (typeof XLSX === "undefined") {
+                    alert("Không tải được thư viện đọc Excel (SheetJS). Hãy lưu file dạng .CSV hoặc copy dán vào tab 'Dán từ Excel'.");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: "array" });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                    loadRows(rows, file.name);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
 
-    function getTotalScans() { return items.reduce((s, it) => s + it.qty, 0); }
-    function getDoneScans() { return items.reduce((s, it) => s + it.done, 0); }
-    function isFinished() { return items.length > 0 && curRow >= items.length; }
+        document.getElementById("btnParsePaste").onclick = () => {
+            parseTextData(pasteInput.value, "Dữ liệu dán");
+        };
 
-    function selectRow(idx) {
-      if (isRunning || idx < 0 || idx >= items.length) return;
-      curRow = idx;
-      items.forEach((it, i) => { it.done = i < idx ? it.qty : 0; });
-      curRepeat = 0;
-      isPaused = true;
-      addLog(`Đã chọn bắn tiếp từ dòng #${idx + 1} (${items[idx].code}).`, "info");
-      renderAll();
-    }
+        function parseTextData(text, sourceName) {
+            const lines = text.split(/\r?\n/);
+            const rows = lines.map((l) => l.trim().split(/[\t,;]+/));
+            loadRows(rows, sourceName);
+        }
 
-    function resetAllProgress() {
-      if (isRunning) return;
-      items.forEach((it) => (it.done = 0));
-      curRow = 0;
-      curRepeat = 0;
-      isPaused = false;
-      document.getElementById("simList").innerHTML = "";
-      resetQrStagePlaceholder();
-      addLog("Đã đặt lại danh sách về đầu.", "info");
-      renderAll();
-    }
+        function loadRows(rows, sourceName) {
+            if (isRunning) {
+                stopFlag = true;
+                cancelCurrentSleep();
+            }
+            const parsed = [];
+            for (const r of rows) {
+                if (!r || r.length < 2) continue;
+                const code = String(r[0] ?? "").trim();
+                const qty = parseInt(String(r[1] ?? "").trim(), 10);
+                if (!code || isNaN(qty) || qty <= 0) continue;
+                parsed.push({ code, qty, done: 0 });
+            }
+            if (parsed.length === 0) {
+                alert("Không tìm thấy dữ liệu hợp lệ! Đảm bảo Cột 1 là Mã vạch, Cột 2 là Số lượng (>0).");
+                return;
+            }
+            items = parsed;
+            curRow = 0;
+            curRepeat = 0;
+            isRunning = false;
+            isPaused = false;
+            stopFlag = false;
+            document.getElementById("simList").innerHTML = "";
+            resetQrStagePlaceholder();
+            addLog(`Đã nạp ${items.length} dòng (${getTotalScans()} lượt) từ "${sourceName}".`, "ok");
+            renderAll();
+        }
 
-    function renderAll() {
-      const total = getTotalScans();
-      const done = getDoneScans();
-      const pct = total ? Math.round((done / total) * 100) : 0;
+        function getTotalScans() { return items.reduce((s, it) => s + it.qty, 0); }
+        function getDoneScans() { return items.reduce((s, it) => s + it.done, 0); }
+        function isFinished() { return items.length > 0 && curRow >= items.length; }
 
-      document.getElementById("statRows").textContent = items.length;
-      document.getElementById("statScans").textContent = `${done} / ${total}`;
-      document.getElementById("progressBar").style.width = pct + "%";
-      document.getElementById("progressPct").textContent = pct + "%";
-      document.getElementById("listSummary").textContent = `${items.length} dòng • ${total} lượt`;
+        function selectRow(idx) {
+            if (isRunning || idx < 0 || idx >= items.length) return;
+            curRow = idx;
+            items.forEach((it, i) => { it.done = i < idx ? it.qty : 0; });
+            curRepeat = 0;
+            isPaused = true;
+            addLog(`Đã chọn bắn tiếp từ dòng #${idx + 1} (${items[idx].code}).`, "info");
+            renderAll();
+        }
 
-      let stateText = "Sẵn sàng";
-      if (isRunning) stateText = activeTab === "qr" ? "Đang chiếu" : "Đang bắn";
-      else if (isFinished()) stateText = "Hoàn thành";
-      else if (isPaused || done > 0) stateText = "Tạm dừng";
-      document.getElementById("statState").textContent = stateText;
+        function resetAllProgress() {
+            if (isRunning) return;
+            items.forEach((it) => (it.done = 0));
+            curRow = 0;
+            curRepeat = 0;
+            isPaused = false;
+            document.getElementById("simList").innerHTML = "";
+            resetQrStagePlaceholder();
+            addLog("Đã đặt lại danh sách về đầu.", "info");
+            renderAll();
+        }
 
-      if (items.length === 0) {
-        document.getElementById("currentPointerText").textContent = "Chưa nạp danh sách";
-      } else if (isFinished()) {
-        document.getElementById("currentPointerText").textContent = "Đã hoàn thành toàn bộ danh sách!";
-      } else {
-        const it = items[curRow];
-        document.getElementById("currentPointerText").textContent =
-          `Tiếp theo: #${curRow + 1} — ${it.code} (${curRepeat + 1}/${it.qty})`;
-      }
+        function renderAll() {
+            const total = getTotalScans();
+            const done = getDoneScans();
+            const pct = total ? Math.round((done / total) * 100) : 0;
 
-      if (items.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">Chưa có dữ liệu.</td></tr>`;
-      } else {
-        tableBody.innerHTML = items.map((it, idx) => {
-          let cls = isRunning ? "" : "selectable";
-          let badge = `<span class="badge b-wait">Chờ</span>`;
-          if (it.done >= it.qty) {
-            cls += " done-row";
-            badge = `<span class="badge b-done">Xong</span>`;
-          } else if (idx === curRow) {
-            cls += " active-row";
-            badge = isRunning
-              ? `<span class="badge b-run">Đang chạy</span>`
-              : `<span class="badge b-pause">Điểm tiếp</span>`;
-          }
-          return `<tr class="${cls}" data-idx="${idx}">
+            document.getElementById("statRows").textContent = items.length;
+            document.getElementById("statScans").textContent = `${done} / ${total}`;
+            document.getElementById("progressBar").style.width = pct + "%";
+            document.getElementById("progressPct").textContent = pct + "%";
+            document.getElementById("listSummary").textContent = `${items.length} dòng • ${total} lượt`;
+
+            let stateText = "Sẵn sàng";
+            if (isRunning) stateText = activeTab === "qr" ? "Đang chiếu" : "Đang bắn";
+            else if (isFinished()) stateText = "Hoàn thành";
+            else if (isPaused || done > 0) stateText = "Tạm dừng";
+            document.getElementById("statState").textContent = stateText;
+
+            if (items.length === 0) {
+                document.getElementById("currentPointerText").textContent = "Chưa nạp danh sách";
+            } else if (isFinished()) {
+                document.getElementById("currentPointerText").textContent = "Đã hoàn thành toàn bộ danh sách!";
+            } else {
+                const it = items[curRow];
+                document.getElementById("currentPointerText").textContent =
+                    `Tiếp theo: #${curRow + 1} — ${it.code} (${curRepeat + 1}/${it.qty})`;
+            }
+
+            if (items.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">Chưa có dữ liệu.</td></tr>`;
+            } else {
+                tableBody.innerHTML = items.map((it, idx) => {
+                    let cls = isRunning ? "" : "selectable";
+                    let badge = `<span class="badge b-wait">Chờ</span>`;
+                    if (it.done >= it.qty) {
+                        cls += " done-row";
+                        badge = `<span class="badge b-done">Xong</span>`;
+                    } else if (idx === curRow) {
+                        cls += " active-row";
+                        badge = isRunning
+                            ? `<span class="badge b-run">Đang chạy</span>`
+                            : `<span class="badge b-pause">Điểm tiếp</span>`;
+                    }
+                    return `<tr class="${cls}" data-idx="${idx}">
             <td>${idx + 1}</td>
             <td style="font-family:monospace;font-weight:600">${escapeHtml(it.code)}</td>
             <td>${it.done}/${it.qty}</td>
             <td>${badge}</td>
           </tr>`;
-        }).join("");
+                }).join("");
 
-        if (!isRunning) {
-          tableBody.querySelectorAll("tr[data-idx]").forEach((tr) => {
-            tr.onclick = () => selectRow(parseInt(tr.dataset.idx, 10));
-          });
+                if (!isRunning) {
+                    tableBody.querySelectorAll("tr[data-idx]").forEach((tr) => {
+                        tr.onclick = () => selectRow(parseInt(tr.dataset.idx, 10));
+                    });
+                }
+            }
+
+            updateAllButtons();
         }
-      }
 
-      updateAllButtons();
-    }
+        function updateAllButtons() {
+            const hasData = items.length > 0;
+            const done = getDoneScans();
+            const finished = isFinished();
 
-    function updateAllButtons() {
-      const hasData = items.length > 0;
-      const done = getDoneScans();
-      const finished = isFinished();
+            // Tab 1 buttons
+            const btnQrStart = document.getElementById("btnQrStart");
+            const btnQrPause = document.getElementById("btnQrPause");
+            const btnQrStep = document.getElementById("btnQrStep");
+            const btnQrReset = document.getElementById("btnQrReset");
 
-      // Tab 1 buttons
-      const btnQrStart = document.getElementById("btnQrStart");
-      const btnQrPause = document.getElementById("btnQrPause");
-      const btnQrStep = document.getElementById("btnQrStep");
-      const btnQrReset = document.getElementById("btnQrReset");
+            btnQrStart.disabled = !hasData || isRunning || finished;
+            btnQrPause.disabled = !isRunning;
+            btnQrStep.disabled = !hasData || isRunning || finished;
+            btnQrReset.disabled = !hasData || isRunning;
 
-      btnQrStart.disabled = !hasData || isRunning || finished;
-      btnQrPause.disabled = !isRunning;
-      btnQrStep.disabled = !hasData || isRunning || finished;
-      btnQrReset.disabled = !hasData || isRunning;
+            // Fullscreen floating buttons
+            const fsStart = document.getElementById("fsStart");
+            const fsPause = document.getElementById("fsPause");
+            const fsStep = document.getElementById("fsStep");
+            fsStart.disabled = btnQrStart.disabled;
+            fsPause.disabled = btnQrPause.disabled;
+            fsStep.disabled = btnQrStep.disabled;
 
-      // Fullscreen floating buttons
-      const fsStart = document.getElementById("fsStart");
-      const fsPause = document.getElementById("fsPause");
-      const fsStep = document.getElementById("fsStep");
-      fsStart.disabled = btnQrStart.disabled;
-      fsPause.disabled = btnQrPause.disabled;
-      fsStep.disabled = btnQrStep.disabled;
+            if (!isRunning && hasData && !finished && (isPaused || done > 0)) {
+                const it = items[curRow];
+                btnQrStart.textContent = `▶ Tiếp tục từ ${it.code} (${curRepeat + 1}/${it.qty})`;
+                fsStart.textContent = `▶ Tiếp tục (${curRepeat + 1}/${it.qty})`;
+            } else {
+                btnQrStart.textContent = "▶ Bắt đầu chiếu";
+                fsStart.textContent = "▶ Bắt đầu";
+            }
 
-      if (!isRunning && hasData && !finished && (isPaused || done > 0)) {
-        const it = items[curRow];
-        btnQrStart.textContent = `▶ Tiếp tục từ ${it.code} (${curRepeat + 1}/${it.qty})`;
-        fsStart.textContent = `▶ Tiếp tục (${curRepeat + 1}/${it.qty})`;
-      } else {
-        btnQrStart.textContent = "▶ Bắt đầu chiếu";
-        fsStart.textContent = "▶ Bắt đầu";
-      }
+            // Tab 2 buttons
+            const usbReady = document.getElementById("usbSim").checked || adb.connected;
+            const btnUsbStart = document.getElementById("btnUsbStart");
+            const btnUsbPause = document.getElementById("btnUsbPause");
+            const btnUsbStep = document.getElementById("btnUsbStep");
+            const btnUsbReset = document.getElementById("btnUsbReset");
 
-      // Tab 2 buttons
-      const usbReady = document.getElementById("usbSim").checked || adb.connected;
-      const btnUsbStart = document.getElementById("btnUsbStart");
-      const btnUsbPause = document.getElementById("btnUsbPause");
-      const btnUsbStep = document.getElementById("btnUsbStep");
-      const btnUsbReset = document.getElementById("btnUsbReset");
+            btnUsbStart.disabled = !hasData || isRunning || finished || !usbReady;
+            btnUsbPause.disabled = !isRunning;
+            btnUsbStep.disabled = !hasData || isRunning || finished || !usbReady;
+            btnUsbReset.disabled = !hasData || isRunning;
 
-      btnUsbStart.disabled = !hasData || isRunning || finished || !usbReady;
-      btnUsbPause.disabled = !isRunning;
-      btnUsbStep.disabled = !hasData || isRunning || finished || !usbReady;
-      btnUsbReset.disabled = !hasData || isRunning;
+            if (!isRunning && hasData && !finished && (isPaused || done > 0)) {
+                const it = items[curRow];
+                btnUsbStart.textContent = `▶ Tiếp tục từ ${it.code} (${curRepeat + 1}/${it.qty})`;
+            } else {
+                btnUsbStart.textContent = "▶ Bắt đầu bắn";
+            }
+        }
 
-      if (!isRunning && hasData && !finished && (isPaused || done > 0)) {
-        const it = items[curRow];
-        btnUsbStart.textContent = `▶ Tiếp tục từ ${it.code} (${curRepeat + 1}/${it.qty})`;
-      } else {
-        btnUsbStart.textContent = "▶ Bắt đầu bắn";
-      }
-    }
+        // =========================================================================
+        // 4. TAB 1: CHIẾU MÃ QR / CODE 128 CHO SÚNG QUÉT LIÊN TỤC
+        // =========================================================================
+        const qrStage = document.getElementById("qrStage");
+        const qrStageContent = document.getElementById("qrStageContent");
+        const qrSizeInput = document.getElementById("qrSize");
+        const qrSizeVal = document.getElementById("qrSizeVal");
+        const qrHideCaption = document.getElementById("qrHideCaption");
 
-    // =========================================================================
-    // 4. TAB 1: CHIẾU MÃ QR / CODE 128 CHO SÚNG QUÉT LIÊN TỤC
-    // =========================================================================
-    const qrStage = document.getElementById("qrStage");
-    const qrStageContent = document.getElementById("qrStageContent");
-    const qrSizeInput = document.getElementById("qrSize");
-    const qrSizeVal = document.getElementById("qrSizeVal");
-    const qrHideCaption = document.getElementById("qrHideCaption");
+        qrSizeInput.oninput = () => {
+            qrSizeVal.textContent = qrSizeInput.value + "px";
+        };
+        qrHideCaption.onchange = () => {
+            qrStage.classList.toggle("hide-caption", qrHideCaption.checked);
+        };
 
-    qrSizeInput.oninput = () => {
-      qrSizeVal.textContent = qrSizeInput.value + "px";
-    };
-    qrHideCaption.onchange = () => {
-      qrStage.classList.toggle("hide-caption", qrHideCaption.checked);
-    };
-
-    function resetQrStagePlaceholder() {
-      qrStage.classList.remove("blank-black", "blank-white");
-      qrStageContent.innerHTML = `<div class="stage-placeholder">
+        function resetQrStagePlaceholder() {
+            qrStage.classList.remove("blank-black", "blank-white");
+            qrStageContent.innerHTML = `<div class="stage-placeholder">
         Nạp danh sách Excel bên trái rồi bấm <strong>Bắt đầu chiếu</strong>.<br />
         Đặt súng bắn mã vạch (chế độ đọc liên tục) chĩa vào vùng trắng này.
       </div>`;
-    }
-
-    function showBlankStage() {
-      const style = document.getElementById("qrBlankStyle").value;
-      qrStage.classList.remove("blank-black", "blank-white");
-      qrStage.classList.add(style === "black" ? "blank-black" : "blank-white");
-      qrStageContent.innerHTML = "";
-    }
-
-    function renderBarcodeOnStage(code, attemptNum, totalQty, rowIdx) {
-      qrStage.classList.remove("blank-black", "blank-white");
-      const type = document.getElementById("qrType").value;
-      const size = parseInt(qrSizeInput.value, 10) || 300;
-
-      qrStageContent.innerHTML = "";
-      const wrap = document.createElement("div");
-      wrap.className = "stage-code-wrap";
-
-      if (type === "QR") {
-        if (typeof QRCode === "undefined") {
-          wrap.innerHTML = `<div style="color:#dc2626;font-weight:700">Không tải được thư viện QRCode (kiểm tra kết nối mạng).</div>`;
-        } else {
-          const qrDiv = document.createElement("div");
-          wrap.appendChild(qrDiv);
-          new QRCode(qrDiv, {
-            text: code,
-            width: size,
-            height: size,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.M,
-          });
         }
-      } else {
-        if (typeof JsBarcode === "undefined") {
-          wrap.innerHTML = `<div style="color:#dc2626;font-weight:700">Không tải được thư viện JsBarcode (kiểm tra kết nối mạng).</div>`;
-        } else {
-          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-          wrap.appendChild(svg);
-          try {
-            const barHeight = Math.round(size * 0.45);
-            const barWidth = Math.max(2, Math.round(size / 110));
-            JsBarcode(svg, code, {
-              format: "CODE128",
-              lineColor: "#000000",
-              background: "#ffffff",
-              width: barWidth,
-              height: barHeight,
-              displayValue: false,
-              margin: 18,
-            });
-          } catch (err) {
-            wrap.innerHTML = `<div style="color:#dc2626;font-weight:700">Mã "${escapeHtml(code)}" có ký tự không hợp lệ với Code 128. Hãy đổi sang QR Code.</div>`;
-          }
-        }
-      }
 
-      const cap = document.createElement("div");
-      cap.className = "stage-caption";
-      cap.innerHTML = `
+        function showBlankStage() {
+            const style = document.getElementById("qrBlankStyle").value;
+            qrStage.classList.remove("blank-black", "blank-white");
+            qrStage.classList.add(style === "black" ? "blank-black" : "blank-white");
+            qrStageContent.innerHTML = "";
+        }
+
+        function renderBarcodeOnStage(code, attemptNum, totalQty, rowIdx) {
+            qrStage.classList.remove("blank-black", "blank-white");
+            const type = document.getElementById("qrType").value;
+            const size = parseInt(qrSizeInput.value, 10) || 300;
+
+            qrStageContent.innerHTML = "";
+            const wrap = document.createElement("div");
+            wrap.className = "stage-code-wrap";
+
+            if (type === "QR") {
+                if (typeof QRCode === "undefined") {
+                    wrap.innerHTML = `<div style="color:#dc2626;font-weight:700">Không tải được thư viện QRCode (kiểm tra kết nối mạng).</div>`;
+                } else {
+                    const qrDiv = document.createElement("div");
+                    wrap.appendChild(qrDiv);
+                    new QRCode(qrDiv, {
+                        text: code,
+                        width: size,
+                        height: size,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M,
+                    });
+                }
+            } else {
+                if (typeof JsBarcode === "undefined") {
+                    wrap.innerHTML = `<div style="color:#dc2626;font-weight:700">Không tải được thư viện JsBarcode (kiểm tra kết nối mạng).</div>`;
+                } else {
+                    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    wrap.appendChild(svg);
+                    try {
+                        const barHeight = Math.round(size * 0.45);
+                        const barWidth = Math.max(2, Math.round(size / 110));
+                        JsBarcode(svg, code, {
+                            format: "CODE128",
+                            lineColor: "#000000",
+                            background: "#ffffff",
+                            width: barWidth,
+                            height: barHeight,
+                            displayValue: false,
+                            margin: 18,
+                        });
+                    } catch (err) {
+                        wrap.innerHTML = `<div style="color:#dc2626;font-weight:700">Mã "${escapeHtml(code)}" có ký tự không hợp lệ với Code 128. Hãy đổi sang QR Code.</div>`;
+                    }
+                }
+            }
+
+            const cap = document.createElement("div");
+            cap.className = "stage-caption";
+            cap.innerHTML = `
         <div class="code-text">${escapeHtml(code)}</div>
         <div class="meta-text">Dòng #${rowIdx + 1}/${items.length} &nbsp;•&nbsp; Lượt ${attemptNum}/${totalQty}</div>
       `;
-      wrap.appendChild(cap);
-      qrStageContent.appendChild(wrap);
-    }
+            wrap.appendChild(cap);
+            qrStageContent.appendChild(wrap);
+        }
 
-    async function runQrLoop() {
-      if (isRunning || isFinished() || items.length === 0) return;
-      isRunning = true;
-      isPaused = false;
-      stopFlag = false;
-      renderAll();
+        async function runQrLoop() {
+            if (isRunning || isFinished() || items.length === 0) return;
+            isRunning = true;
+            isPaused = false;
+            stopFlag = false;
+            renderAll();
 
-      // Countdown
-      const countdownSec = Math.max(0, parseInt(document.getElementById("qrCountdown").value, 10) || 0);
-      if (countdownSec > 0) {
-        qrStage.classList.remove("blank-black", "blank-white");
-        for (let s = countdownSec; s > 0; s--) {
-          if (stopFlag) break;
-          qrStageContent.innerHTML = `
+            // Countdown
+            const countdownSec = Math.max(0, parseInt(document.getElementById("qrCountdown").value, 10) || 0);
+            if (countdownSec > 0) {
+                qrStage.classList.remove("blank-black", "blank-white");
+                for (let s = countdownSec; s > 0; s--) {
+                    if (stopFlag) break;
+                    qrStageContent.innerHTML = `
             <div style="text-align:center">
               <div class="stage-countdown">${s}</div>
               <div style="color:#475569;margin-top:10px;font-weight:600">Đặt súng hướng vào vùng trắng...</div>
             </div>`;
-          await cancellableSleep(1000);
-        }
-      }
+                    await cancellableSleep(1000);
+                }
+            }
 
-      const showMs = Math.max(200, parseInt(document.getElementById("qrShowMs").value, 10) || 1200);
-      const blankMs = Math.max(0, parseInt(document.getElementById("qrBlankMs").value, 10) || 0);
+            const showMs = Math.max(200, parseInt(document.getElementById("qrShowMs").value, 10) || 1200);
+            const blankMs = Math.max(0, parseInt(document.getElementById("qrBlankMs").value, 10) || 0);
 
-      while (isRunning && !stopFlag && curRow < items.length) {
-        const it = items[curRow];
-        const attemptNum = curRepeat + 1;
+            while (isRunning && !stopFlag && curRow < items.length) {
+                const it = items[curRow];
+                const attemptNum = curRepeat + 1;
 
-        renderBarcodeOnStage(it.code, attemptNum, it.qty, curRow);
-        playBeep(document.getElementById("qrBeep").checked);
+                renderBarcodeOnStage(it.code, attemptNum, it.qty, curRow);
+                playBeep(document.getElementById("qrBeep").checked);
 
-        await cancellableSleep(showMs);
-        if (stopFlag) break;
+                await cancellableSleep(showMs);
+                if (stopFlag) break;
 
-        // Xác nhận hoàn thành lượt chiếu hiện tại
-        it.done++;
-        curRepeat++;
-        if (curRepeat >= it.qty) {
-          curRow++;
-          curRepeat = 0;
-        }
-        renderAll();
+                // Xác nhận hoàn thành lượt chiếu hiện tại
+                it.done++;
+                curRepeat++;
+                if (curRepeat >= it.qty) {
+                    curRow++;
+                    curRepeat = 0;
+                }
+                renderAll();
 
-        if (curRow >= items.length || stopFlag) break;
+                if (curRow >= items.length || stopFlag) break;
 
-        // Ngắt trắng / chớp đen giữa 2 lượt
-        if (blankMs > 0) {
-          showBlankStage();
-          await cancellableSleep(blankMs);
-        }
-      }
+                // Ngắt trắng / chớp đen giữa 2 lượt
+                if (blankMs > 0) {
+                    showBlankStage();
+                    await cancellableSleep(blankMs);
+                }
+            }
 
-      isRunning = false;
-      if (curRow >= items.length) {
-        isPaused = false;
-        qrStage.classList.remove("blank-black", "blank-white");
-        qrStageContent.innerHTML = `<div class="stage-placeholder" style="color:#047857;font-weight:700;font-size:1.2rem;">
+            isRunning = false;
+            if (curRow >= items.length) {
+                isPaused = false;
+                qrStage.classList.remove("blank-black", "blank-white");
+                qrStageContent.innerHTML = `<div class="stage-placeholder" style="color:#047857;font-weight:700;font-size:1.2rem;">
           ✅ ĐÃ CHIẾU XONG TOÀN BỘ DANH SÁCH!
         </div>`;
-      } else {
-        isPaused = true;
-      }
-      renderAll();
-    }
-
-    function pauseAnyMode() {
-      if (!isRunning) return;
-      stopFlag = true;
-      cancelCurrentSleep();
-    }
-
-    function stepQrOnce() {
-      if (isRunning || isFinished() || items.length === 0) return;
-      const it = items[curRow];
-      const attemptNum = curRepeat + 1;
-      renderBarcodeOnStage(it.code, attemptNum, it.qty, curRow);
-      playBeep(document.getElementById("qrBeep").checked);
-      it.done++;
-      curRepeat++;
-      if (curRepeat >= it.qty) {
-        curRow++;
-        curRepeat = 0;
-      }
-      isPaused = curRow < items.length;
-      renderAll();
-    }
-
-    document.getElementById("btnQrStart").onclick = runQrLoop;
-    document.getElementById("btnQrPause").onclick = pauseAnyMode;
-    document.getElementById("btnQrStep").onclick = stepQrOnce;
-    document.getElementById("btnQrReset").onclick = resetAllProgress;
-
-    // Fullscreen controls
-    document.getElementById("btnFullscreen").onclick = () => {
-      if (!document.fullscreenElement) {
-        qrStage.requestFullscreen && qrStage.requestFullscreen();
-      } else {
-        document.exitFullscreen && document.exitFullscreen();
-      }
-    };
-    document.getElementById("fsStart").onclick = runQrLoop;
-    document.getElementById("fsPause").onclick = pauseAnyMode;
-    document.getElementById("fsStep").onclick = stepQrOnce;
-    document.getElementById("fsExit").onclick = () => {
-      document.exitFullscreen && document.exitFullscreen();
-    };
-
-    // =========================================================================
-    // 5. TAB 2: ENGINE WEBUSB ADB THUẦN JAVASCRIPT
-    // =========================================================================
-    const ADB_CLASS = 0xff, ADB_SUBCLASS = 0x42, ADB_PROTOCOL = 0x01;
-    const CMD_CNXN = 0x4e584e43, CMD_AUTH = 0x48545541, CMD_OPEN = 0x4e45504f;
-    const CMD_OKAY = 0x59414b4f, CMD_CLSE = 0x45534c43, CMD_WRTE = 0x45545257;
-    const AUTH_TOKEN = 1, AUTH_SIGNATURE = 2, AUTH_RSAPUBLICKEY = 3;
-    const KEY_STORAGE = "webusb_adb_rsa_jwk_v1";
-
-    function b64urlToBytes(str) {
-      str = str.replace(/-/g, "+").replace(/_/g, "/");
-      while (str.length % 4) str += "=";
-      const bin = atob(str);
-      const out = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out;
-    }
-    function bytesToBigInt(bytes) {
-      let hex = "0x";
-      for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, "0");
-      return BigInt(hex);
-    }
-    function bigIntToBytes(bi, len) {
-      let hex = bi.toString(16);
-      if (hex.length % 2) hex = "0" + hex;
-      const out = new Uint8Array(len);
-      const rawLen = hex.length / 2;
-      const offset = len - rawLen;
-      for (let i = 0; i < rawLen; i++) out[offset + i] = parseInt(hex.substr(i * 2, 2), 16);
-      return out;
-    }
-    function modPow(base, exp, mod) {
-      let result = 1n;
-      base = base % mod;
-      while (exp > 0n) {
-        if (exp & 1n) result = (result * base) % mod;
-        exp >>= 1n;
-        base = (base * base) % mod;
-      }
-      return result;
-    }
-    function modInv32(a) {
-      let m = 0x100000000n, m0 = m, x0 = 0n, x1 = 1n;
-      a = ((a % m) + m) % m;
-      while (a > 1n) {
-        const q = a / m;
-        let t = m; m = a % m; a = t;
-        t = x0; x0 = x1 - q * x0; x1 = t;
-      }
-      if (x1 < 0n) x1 += m0;
-      return x1;
-    }
-    async function getOrCreateAdbKey() {
-      let jwk = null;
-      try { const s = localStorage.getItem(KEY_STORAGE); if (s) jwk = JSON.parse(s); } catch (e) {}
-      if (!jwk || !jwk.n || !jwk.d || !jwk.e) {
-        const kp = await crypto.subtle.generateKey(
-          { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-1" },
-          true, ["sign", "verify"]
-        );
-        jwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
-        try { localStorage.setItem(KEY_STORAGE, JSON.stringify(jwk)); } catch (e) {}
-      }
-      return {
-        n: bytesToBigInt(b64urlToBytes(jwk.n)),
-        d: bytesToBigInt(b64urlToBytes(jwk.d)),
-        e: bytesToBigInt(b64urlToBytes(jwk.e)),
-      };
-    }
-    function encodeAdbPublicKey(key) {
-      const words = 64;
-      const buf = new ArrayBuffer(524);
-      const view = new DataView(buf);
-      view.setUint32(0, words, true);
-      const inv = modInv32(key.n & 0xffffffffn);
-      const n0inv = (0x100000000n - inv) & 0xffffffffn;
-      view.setUint32(4, Number(n0inv), true);
-      let tmpN = key.n;
-      for (let i = 0; i < words; i++) { view.setUint32(8 + i * 4, Number(tmpN & 0xffffffffn), true); tmpN >>= 32n; }
-      const R = 1n << 2048n;
-      let rr = (R * R) % key.n;
-      for (let i = 0; i < words; i++) { view.setUint32(264 + i * 4, Number(rr & 0xffffffffn), true); rr >>= 32n; }
-      view.setUint32(520, Number(key.e), true);
-      const bytes = new Uint8Array(buf);
-      let bin = "";
-      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-      return new TextEncoder().encode(btoa(bin) + " webusb-barcode@pc\0");
-    }
-    function signAdbToken(tokenBytes, key) {
-      const sha1Prefix = new Uint8Array([0x30,0x21,0x30,0x09,0x06,0x05,0x2b,0x0e,0x03,0x02,0x1a,0x05,0x00,0x04,0x14]);
-      const tLen = sha1Prefix.length + tokenBytes.length;
-      const em = new Uint8Array(256);
-      em[0] = 0x00; em[1] = 0x01;
-      const psLen = 256 - 3 - tLen;
-      for (let i = 0; i < psLen; i++) em[2 + i] = 0xff;
-      em[2 + psLen] = 0x00;
-      em.set(sha1Prefix, 3 + psLen);
-      em.set(tokenBytes, 3 + psLen + sha1Prefix.length);
-      return bigIntToBytes(modPow(bytesToBigInt(em), key.d, key.n), 256);
-    }
-
-    class WebUsbAdbClient {
-      constructor() {
-        this.device = null; this.ifaceNumber = null;
-        this.epIn = null; this.epOut = null;
-        this.maxPayload = 256 * 1024; this.nextLocalId = 1;
-        this.connected = false; this.deviceBanner = "";
-      }
-      async connect(onStatus) {
-        const device = await navigator.usb.requestDevice({
-          filters: [{ classCode: ADB_CLASS, subclassCode: ADB_SUBCLASS, protocolCode: ADB_PROTOCOL }]
-        });
-        this.device = device;
-        await device.open();
-        if (device.configuration === null) await device.selectConfiguration(1);
-        let foundIface = null, foundAlt = null;
-        for (const iface of device.configuration.interfaces) {
-          for (const alt of iface.alternates) {
-            if (alt.interfaceClass === ADB_CLASS && alt.interfaceSubclass === ADB_SUBCLASS && alt.interfaceProtocol === ADB_PROTOCOL) {
-              foundIface = iface; foundAlt = alt; break;
-            }
-          }
-          if (foundIface) break;
-        }
-        if (!foundIface) throw new Error("Không tìm thấy giao diện ADB trên thiết bị USB này.");
-        this.ifaceNumber = foundIface.interfaceNumber;
-        await device.claimInterface(this.ifaceNumber);
-        if (foundAlt.alternateSetting !== 0) await device.selectAlternateInterface(this.ifaceNumber, foundAlt.alternateSetting);
-        for (const ep of foundAlt.endpoints) {
-          if (ep.direction === "in" && ep.type === "bulk") this.epIn = ep.endpointNumber;
-          if (ep.direction === "out" && ep.type === "bulk") this.epOut = ep.endpointNumber;
-        }
-        if (this.epIn === null || this.epOut === null) throw new Error("Không tìm thấy cổng truyền Bulk USB.");
-
-        const key = await getOrCreateAdbKey();
-        onStatus && onStatus("Đang bắt tay ADB...");
-        await this.sendPacket(CMD_CNXN, 0x01000000, this.maxPayload, new TextEncoder().encode("host::features=cmd\0"));
-
-        let triedSig = false;
-        while (true) {
-          const pkt = await this.readPacket();
-          if (pkt.cmd === CMD_CNXN) {
-            this.maxPayload = Math.min(this.maxPayload, pkt.arg1 || 4096);
-            this.deviceBanner = new TextDecoder().decode(pkt.data).replace(/\0+$/, "");
-            this.connected = true;
-            return this.deviceBanner;
-          } else if (pkt.cmd === CMD_AUTH && pkt.arg0 === AUTH_TOKEN) {
-            if (!triedSig) {
-              triedSig = true;
-              await this.sendPacket(CMD_AUTH, AUTH_SIGNATURE, 0, signAdbToken(pkt.data, key));
             } else {
-              onStatus && onStatus("Nhìn màn hình điện thoại và bấm 'Cho phép gỡ lỗi USB'!");
-              await this.sendPacket(CMD_AUTH, AUTH_RSAPUBLICKEY, 0, encodeAdbPublicKey(key));
+                isPaused = true;
             }
-          } else {
-            throw new Error("Phản hồi ADB không hợp lệ (cmd=0x" + pkt.cmd.toString(16) + ").");
-          }
+            renderAll();
         }
-      }
-      async disconnect() {
-        this.connected = false;
-        if (this.device) {
-          try { if (this.ifaceNumber !== null) await this.device.releaseInterface(this.ifaceNumber); } catch (e) {}
-          try { await this.device.close(); } catch (e) {}
+
+        function pauseAnyMode() {
+            if (!isRunning) return;
+            stopFlag = true;
+            cancelCurrentSleep();
         }
-        this.device = null; this.ifaceNumber = null;
-      }
-      checksum(data) {
-        let sum = 0; for (let i = 0; i < data.length; i++) sum = (sum + data[i]) >>> 0; return sum;
-      }
-      async sendPacket(cmd, arg0, arg1, data) {
-        const payload = data ? new Uint8Array(data) : new Uint8Array(0);
-        const header = new ArrayBuffer(24);
-        const dv = new DataView(header);
-        dv.setUint32(0, cmd >>> 0, true); dv.setUint32(4, arg0 >>> 0, true);
-        dv.setUint32(8, arg1 >>> 0, true); dv.setUint32(12, payload.length >>> 0, true);
-        dv.setUint32(16, this.checksum(payload) >>> 0, true);
-        dv.setUint32(20, (cmd ^ 0xffffffff) >>> 0, true);
-        const r1 = await this.device.transferOut(this.epOut, header);
-        if (r1.status !== "ok") throw new Error("Lỗi gửi header USB: " + r1.status);
-        if (payload.length > 0) {
-          const r2 = await this.device.transferOut(this.epOut, payload);
-          if (r2.status !== "ok") throw new Error("Lỗi gửi dữ liệu USB: " + r2.status);
+
+        function stepQrOnce() {
+            if (isRunning || isFinished() || items.length === 0) return;
+            const it = items[curRow];
+            const attemptNum = curRepeat + 1;
+            renderBarcodeOnStage(it.code, attemptNum, it.qty, curRow);
+            playBeep(document.getElementById("qrBeep").checked);
+            it.done++;
+            curRepeat++;
+            if (curRepeat >= it.qty) {
+                curRow++;
+                curRepeat = 0;
+            }
+            isPaused = curRow < items.length;
+            renderAll();
         }
-      }
-      async readExact(length) {
-        const out = new Uint8Array(length);
-        let offset = 0;
-        while (offset < length) {
-          const res = await this.device.transferIn(this.epIn, length - offset);
-          if (res.status !== "ok") throw new Error("Lỗi đọc USB: " + res.status);
-          const chunk = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
-          out.set(chunk, offset);
-          offset += chunk.length;
+
+        document.getElementById("btnQrStart").onclick = runQrLoop;
+        document.getElementById("btnQrPause").onclick = pauseAnyMode;
+        document.getElementById("btnQrStep").onclick = stepQrOnce;
+        document.getElementById("btnQrReset").onclick = resetAllProgress;
+
+        // Fullscreen controls
+        document.getElementById("btnFullscreen").onclick = () => {
+            if (!document.fullscreenElement) {
+                qrStage.requestFullscreen && qrStage.requestFullscreen();
+            } else {
+                document.exitFullscreen && document.exitFullscreen();
+            }
+        };
+        document.getElementById("fsStart").onclick = runQrLoop;
+        document.getElementById("fsPause").onclick = pauseAnyMode;
+        document.getElementById("fsStep").onclick = stepQrOnce;
+        document.getElementById("fsExit").onclick = () => {
+            document.exitFullscreen && document.exitFullscreen();
+        };
+
+        // =========================================================================
+        // 5. TAB 2: ENGINE WEBUSB ADB THUẦN JAVASCRIPT
+        // =========================================================================
+        const ADB_CLASS = 0xff, ADB_SUBCLASS = 0x42, ADB_PROTOCOL = 0x01;
+        const CMD_CNXN = 0x4e584e43, CMD_AUTH = 0x48545541, CMD_OPEN = 0x4e45504f;
+        const CMD_OKAY = 0x59414b4f, CMD_CLSE = 0x45534c43, CMD_WRTE = 0x45545257;
+        const AUTH_TOKEN = 1, AUTH_SIGNATURE = 2, AUTH_RSAPUBLICKEY = 3;
+        const KEY_STORAGE = "webusb_adb_rsa_jwk_v1";
+
+        function b64urlToBytes(str) {
+            str = str.replace(/-/g, "+").replace(/_/g, "/");
+            while (str.length % 4) str += "=";
+            const bin = atob(str);
+            const out = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+            return out;
         }
-        return out;
-      }
-      async readPacket() {
-        const hdr = await this.readExact(24);
-        const dv = new DataView(hdr.buffer, hdr.byteOffset, 24);
-        const cmd = dv.getUint32(0, true), arg0 = dv.getUint32(4, true), arg1 = dv.getUint32(8, true), len = dv.getUint32(12, true);
-        const data = len > 0 ? await this.readExact(len) : new Uint8Array(0);
-        return { cmd, arg0, arg1, data };
-      }
-      async shell(command) {
-        if (!this.connected) throw new Error("Chưa kết nối Android qua WebUSB.");
-        const localId = this.nextLocalId++;
-        await this.sendPacket(CMD_OPEN, localId, 0, new TextEncoder().encode("shell:" + command + "\0"));
-        let chunks = [];
-        while (true) {
-          const pkt = await this.readPacket();
-          if (pkt.cmd === CMD_OKAY && pkt.arg1 === localId) {
-            // stream opened
-          } else if (pkt.cmd === CMD_WRTE && pkt.arg1 === localId) {
-            chunks.push(pkt.data);
-            await this.sendPacket(CMD_OKAY, localId, pkt.arg0, null);
-          } else if (pkt.cmd === CMD_CLSE && pkt.arg1 === localId) {
-            if (pkt.arg0) await this.sendPacket(CMD_CLSE, localId, pkt.arg0, null);
-            break;
-          }
+        function bytesToBigInt(bytes) {
+            let hex = "0x";
+            for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, "0");
+            return BigInt(hex);
         }
-        return chunks.map((c) => new TextDecoder().decode(c)).join("");
-      }
-    }
-
-    function escapeAndroidInputText(text) {
-      let out = "";
-      for (const ch of text) {
-        if (ch === " ") out += "%s";
-        else if ("&|;<>()$`\\\"'*?[]#~=%!{}".includes(ch)) out += "\\" + ch;
-        else out += ch;
-      }
-      return out;
-    }
-
-    const adb = new WebUsbAdbClient();
-    const usbDot = document.getElementById("usbDot");
-    const usbStatusText = document.getElementById("usbStatusText");
-    const usbMeta = document.getElementById("usbMeta");
-    const btnConnectUsb = document.getElementById("btnConnectUsb");
-    const btnDisconnectUsb = document.getElementById("btnDisconnectUsb");
-    const usbContextWarn = document.getElementById("usbContextWarn");
-    const usbSim = document.getElementById("usbSim");
-    const simPhone = document.getElementById("simPhone");
-    const simInput = document.getElementById("simInput");
-    const simList = document.getElementById("simList");
-
-    if (!navigator.usb) {
-      usbContextWarn.classList.add("show");
-      btnConnectUsb.disabled = true;
-    } else {
-      navigator.usb.addEventListener("disconnect", (ev) => {
-        if (adb.device && ev.device === adb.device) {
-          adb.connected = false;
-          adb.device = null;
-          if (isRunning && activeTab === "usb") pauseAnyMode();
-          setUsbUiDisconnected("Cáp USB đã bị rút ra.");
-          addLog("Cáp USB điện thoại đã bị ngắt kết nối.", "err");
-          renderAll();
+        function bigIntToBytes(bi, len) {
+            let hex = bi.toString(16);
+            if (hex.length % 2) hex = "0" + hex;
+            const out = new Uint8Array(len);
+            const rawLen = hex.length / 2;
+            const offset = len - rawLen;
+            for (let i = 0; i < rawLen; i++) out[offset + i] = parseInt(hex.substr(i * 2, 2), 16);
+            return out;
         }
-      });
-    }
+        function modPow(base, exp, mod) {
+            let result = 1n;
+            base = base % mod;
+            while (exp > 0n) {
+                if (exp & 1n) result = (result * base) % mod;
+                exp >>= 1n;
+                base = (base * base) % mod;
+            }
+            return result;
+        }
+        function modInv32(a) {
+            let m = 0x100000000n, m0 = m, x0 = 0n, x1 = 1n;
+            a = ((a % m) + m) % m;
+            while (a > 1n) {
+                const q = a / m;
+                let t = m; m = a % m; a = t;
+                t = x0; x0 = x1 - q * x0; x1 = t;
+            }
+            if (x1 < 0n) x1 += m0;
+            return x1;
+        }
+        async function getOrCreateAdbKey() {
+            let jwk = null;
+            try { const s = localStorage.getItem(KEY_STORAGE); if (s) jwk = JSON.parse(s); } catch (e) { }
+            if (!jwk || !jwk.n || !jwk.d || !jwk.e) {
+                const kp = await crypto.subtle.generateKey(
+                    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-1" },
+                    true, ["sign", "verify"]
+                );
+                jwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
+                try { localStorage.setItem(KEY_STORAGE, JSON.stringify(jwk)); } catch (e) { }
+            }
+            return {
+                n: bytesToBigInt(b64urlToBytes(jwk.n)),
+                d: bytesToBigInt(b64urlToBytes(jwk.d)),
+                e: bytesToBigInt(b64urlToBytes(jwk.e)),
+            };
+        }
+        function encodeAdbPublicKey(key) {
+            const words = 64;
+            const buf = new ArrayBuffer(524);
+            const view = new DataView(buf);
+            view.setUint32(0, words, true);
+            const inv = modInv32(key.n & 0xffffffffn);
+            const n0inv = (0x100000000n - inv) & 0xffffffffn;
+            view.setUint32(4, Number(n0inv), true);
+            let tmpN = key.n;
+            for (let i = 0; i < words; i++) { view.setUint32(8 + i * 4, Number(tmpN & 0xffffffffn), true); tmpN >>= 32n; }
+            const R = 1n << 2048n;
+            let rr = (R * R) % key.n;
+            for (let i = 0; i < words; i++) { view.setUint32(264 + i * 4, Number(rr & 0xffffffffn), true); rr >>= 32n; }
+            view.setUint32(520, Number(key.e), true);
+            const bytes = new Uint8Array(buf);
+            let bin = "";
+            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+            return new TextEncoder().encode(btoa(bin) + " webusb-barcode@pc\0");
+        }
+        function signAdbToken(tokenBytes, key) {
+            const sha1Prefix = new Uint8Array([0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14]);
+            const tLen = sha1Prefix.length + tokenBytes.length;
+            const em = new Uint8Array(256);
+            em[0] = 0x00; em[1] = 0x01;
+            const psLen = 256 - 3 - tLen;
+            for (let i = 0; i < psLen; i++) em[2 + i] = 0xff;
+            em[2 + psLen] = 0x00;
+            em.set(sha1Prefix, 3 + psLen);
+            em.set(tokenBytes, 3 + psLen + sha1Prefix.length);
+            return bigIntToBytes(modPow(bytesToBigInt(em), key.d, key.n), 256);
+        }
 
-    usbSim.onchange = () => {
-      simPhone.classList.toggle("show", usbSim.checked);
-      updateAllButtons();
-    };
+        class WebUsbAdbClient {
+            constructor() {
+                this.device = null; this.ifaceNumber = null;
+                this.epIn = null; this.epOut = null;
+                this.maxPayload = 256 * 1024; this.nextLocalId = 1;
+                this.connected = false; this.deviceBanner = "";
+            }
+            async connect(onStatus) {
+                const device = await navigator.usb.requestDevice({
+                    filters: [{ classCode: ADB_CLASS, subclassCode: ADB_SUBCLASS, protocolCode: ADB_PROTOCOL }]
+                });
+                this.device = device;
+                await device.open();
+                if (device.configuration === null) await device.selectConfiguration(1);
+                let foundIface = null, foundAlt = null;
+                for (const iface of device.configuration.interfaces) {
+                    for (const alt of iface.alternates) {
+                        if (alt.interfaceClass === ADB_CLASS && alt.interfaceSubclass === ADB_SUBCLASS && alt.interfaceProtocol === ADB_PROTOCOL) {
+                            foundIface = iface; foundAlt = alt; break;
+                        }
+                    }
+                    if (foundIface) break;
+                }
+                if (!foundIface) throw new Error("Không tìm thấy giao diện ADB trên thiết bị USB này.");
+                this.ifaceNumber = foundIface.interfaceNumber;
+                await device.claimInterface(this.ifaceNumber);
+                if (foundAlt.alternateSetting !== 0) await device.selectAlternateInterface(this.ifaceNumber, foundAlt.alternateSetting);
+                for (const ep of foundAlt.endpoints) {
+                    if (ep.direction === "in" && ep.type === "bulk") this.epIn = ep.endpointNumber;
+                    if (ep.direction === "out" && ep.type === "bulk") this.epOut = ep.endpointNumber;
+                }
+                if (this.epIn === null || this.epOut === null) throw new Error("Không tìm thấy cổng truyền Bulk USB.");
 
-    function setUsbUiDisconnected(msg) {
-      usbDot.className = "dot";
-      usbStatusText.textContent = "Chưa kết nối";
-      usbMeta.textContent = msg || "Chưa chọn thiết bị.";
-      btnConnectUsb.style.display = "";
-      btnDisconnectUsb.style.display = "none";
-    }
+                const key = await getOrCreateAdbKey();
+                onStatus && onStatus("Đang bắt tay ADB...");
+                await this.sendPacket(CMD_CNXN, 0x01000000, this.maxPayload, new TextEncoder().encode("host::features=cmd\0"));
 
-    btnConnectUsb.onclick = async () => {
-      if (!navigator.usb) return;
-      btnConnectUsb.disabled = true;
-      usbDot.className = "dot warn";
-      usbStatusText.textContent = "Đang kết nối...";
-      try {
-        const banner = await adb.connect((s) => {
-          usbMeta.textContent = s;
-          addLog(s, "warn");
-        });
-        const name = adb.device.productName || "Android";
-        const serial = adb.device.serialNumber || "";
-        usbDot.className = "dot ok";
-        usbStatusText.textContent = name;
-        usbMeta.textContent = `Đã kết nối: ${name}${serial ? " (" + serial + ")" : ""} • ${banner}`;
-        btnConnectUsb.style.display = "none";
-        btnDisconnectUsb.style.display = "";
-        addLog(`Kết nối WebUSB thành công: ${name} (${serial})`, "ok");
-      } catch (err) {
-        await adb.disconnect();
-        setUsbUiDisconnected("Lỗi: " + err.message);
-        addLog("Lỗi kết nối WebUSB: " + err.message, "err");
-      } finally {
-        btnConnectUsb.disabled = false;
+                let triedSig = false;
+                while (true) {
+                    const pkt = await this.readPacket();
+                    if (pkt.cmd === CMD_CNXN) {
+                        this.maxPayload = Math.min(this.maxPayload, pkt.arg1 || 4096);
+                        this.deviceBanner = new TextDecoder().decode(pkt.data).replace(/\0+$/, "");
+                        this.connected = true;
+                        return this.deviceBanner;
+                    } else if (pkt.cmd === CMD_AUTH && pkt.arg0 === AUTH_TOKEN) {
+                        if (!triedSig) {
+                            triedSig = true;
+                            await this.sendPacket(CMD_AUTH, AUTH_SIGNATURE, 0, signAdbToken(pkt.data, key));
+                        } else {
+                            onStatus && onStatus("Nhìn màn hình điện thoại và bấm 'Cho phép gỡ lỗi USB'!");
+                            await this.sendPacket(CMD_AUTH, AUTH_RSAPUBLICKEY, 0, encodeAdbPublicKey(key));
+                        }
+                    } else {
+                        throw new Error("Phản hồi ADB không hợp lệ (cmd=0x" + pkt.cmd.toString(16) + ").");
+                    }
+                }
+            }
+            async disconnect() {
+                this.connected = false;
+                if (this.device) {
+                    try { if (this.ifaceNumber !== null) await this.device.releaseInterface(this.ifaceNumber); } catch (e) { }
+                    try { await this.device.close(); } catch (e) { }
+                }
+                this.device = null; this.ifaceNumber = null;
+            }
+            checksum(data) {
+                let sum = 0; for (let i = 0; i < data.length; i++) sum = (sum + data[i]) >>> 0; return sum;
+            }
+            async sendPacket(cmd, arg0, arg1, data) {
+                const payload = data ? new Uint8Array(data) : new Uint8Array(0);
+                const header = new ArrayBuffer(24);
+                const dv = new DataView(header);
+                dv.setUint32(0, cmd >>> 0, true); dv.setUint32(4, arg0 >>> 0, true);
+                dv.setUint32(8, arg1 >>> 0, true); dv.setUint32(12, payload.length >>> 0, true);
+                dv.setUint32(16, this.checksum(payload) >>> 0, true);
+                dv.setUint32(20, (cmd ^ 0xffffffff) >>> 0, true);
+                const r1 = await this.device.transferOut(this.epOut, header);
+                if (r1.status !== "ok") throw new Error("Lỗi gửi header USB: " + r1.status);
+                if (payload.length > 0) {
+                    const r2 = await this.device.transferOut(this.epOut, payload);
+                    if (r2.status !== "ok") throw new Error("Lỗi gửi dữ liệu USB: " + r2.status);
+                }
+            }
+            async readExact(length) {
+                const out = new Uint8Array(length);
+                let offset = 0;
+                while (offset < length) {
+                    const res = await this.device.transferIn(this.epIn, length - offset);
+                    if (res.status !== "ok") throw new Error("Lỗi đọc USB: " + res.status);
+                    const chunk = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
+                    out.set(chunk, offset);
+                    offset += chunk.length;
+                }
+                return out;
+            }
+            async readPacket() {
+                const hdr = await this.readExact(24);
+                const dv = new DataView(hdr.buffer, hdr.byteOffset, 24);
+                const cmd = dv.getUint32(0, true), arg0 = dv.getUint32(4, true), arg1 = dv.getUint32(8, true), len = dv.getUint32(12, true);
+                const data = len > 0 ? await this.readExact(len) : new Uint8Array(0);
+                return { cmd, arg0, arg1, data };
+            }
+            async shell(command) {
+                if (!this.connected) throw new Error("Chưa kết nối Android qua WebUSB.");
+                const localId = this.nextLocalId++;
+                await this.sendPacket(CMD_OPEN, localId, 0, new TextEncoder().encode("shell:" + command + "\0"));
+                let chunks = [];
+                while (true) {
+                    const pkt = await this.readPacket();
+                    if (pkt.cmd === CMD_OKAY && pkt.arg1 === localId) {
+                        // stream opened
+                    } else if (pkt.cmd === CMD_WRTE && pkt.arg1 === localId) {
+                        chunks.push(pkt.data);
+                        await this.sendPacket(CMD_OKAY, localId, pkt.arg0, null);
+                    } else if (pkt.cmd === CMD_CLSE && pkt.arg1 === localId) {
+                        if (pkt.arg0) await this.sendPacket(CMD_CLSE, localId, pkt.arg0, null);
+                        break;
+                    }
+                }
+                return chunks.map((c) => new TextDecoder().decode(c)).join("");
+            }
+        }
+
+        function escapeAndroidInputText(text) {
+            let out = "";
+            for (const ch of text) {
+                if (ch === " ") out += "%s";
+                else if ("&|;<>()$`\\\"'*?[]#~=%!{}".includes(ch)) out += "\\" + ch;
+                else out += ch;
+            }
+            return out;
+        }
+
+        const adb = new WebUsbAdbClient();
+        const usbDot = document.getElementById("usbDot");
+        const usbStatusText = document.getElementById("usbStatusText");
+        const usbMeta = document.getElementById("usbMeta");
+        const btnConnectUsb = document.getElementById("btnConnectUsb");
+        const btnDisconnectUsb = document.getElementById("btnDisconnectUsb");
+        const usbContextWarn = document.getElementById("usbContextWarn");
+        const usbSim = document.getElementById("usbSim");
+        const simPhone = document.getElementById("simPhone");
+        const simInput = document.getElementById("simInput");
+        const simList = document.getElementById("simList");
+
+        if (!navigator.usb) {
+            usbContextWarn.classList.add("show");
+            btnConnectUsb.disabled = true;
+        } else {
+            navigator.usb.addEventListener("disconnect", (ev) => {
+                if (adb.device && ev.device === adb.device) {
+                    adb.connected = false;
+                    adb.device = null;
+                    if (isRunning && activeTab === "usb") pauseAnyMode();
+                    setUsbUiDisconnected("Cáp USB đã bị rút ra.");
+                    addLog("Cáp USB điện thoại đã bị ngắt kết nối.", "err");
+                    renderAll();
+                }
+            });
+        }
+
+        usbSim.onchange = () => {
+            simPhone.classList.toggle("show", usbSim.checked);
+            updateAllButtons();
+        };
+
+        function setUsbUiDisconnected(msg) {
+            usbDot.className = "dot";
+            usbStatusText.textContent = "Chưa kết nối";
+            usbMeta.textContent = msg || "Chưa chọn thiết bị.";
+            btnConnectUsb.style.display = "";
+            btnDisconnectUsb.style.display = "none";
+        }
+
+        btnConnectUsb.onclick = async () => {
+            if (!navigator.usb) return;
+            btnConnectUsb.disabled = true;
+            usbDot.className = "dot warn";
+            usbStatusText.textContent = "Đang kết nối...";
+            try {
+                const banner = await adb.connect((s) => {
+                    usbMeta.textContent = s;
+                    addLog(s, "warn");
+                });
+                const name = adb.device.productName || "Android";
+                const serial = adb.device.serialNumber || "";
+                usbDot.className = "dot ok";
+                usbStatusText.textContent = name;
+                usbMeta.textContent = `Đã kết nối: ${name}${serial ? " (" + serial + ")" : ""} • ${banner}`;
+                btnConnectUsb.style.display = "none";
+                btnDisconnectUsb.style.display = "";
+                addLog(`Kết nối WebUSB thành công: ${name} (${serial})`, "ok");
+            } catch (err) {
+                await adb.disconnect();
+                setUsbUiDisconnected("Lỗi: " + err.message);
+                addLog("Lỗi kết nối WebUSB: " + err.message, "err");
+            } finally {
+                btnConnectUsb.disabled = false;
+                renderAll();
+            }
+        };
+
+        btnDisconnectUsb.onclick = async () => {
+            if (isRunning && activeTab === "usb") pauseAnyMode();
+            await adb.disconnect();
+            setUsbUiDisconnected("Đã ngắt kết nối.");
+            addLog("Đã ngắt kết nối WebUSB.", "info");
+            renderAll();
+        };
+
+        async function sendOneUsbBarcode(code) {
+            const key = document.getElementById("usbEndKey").value;
+            if (usbSim.checked) {
+                simInput.value = code;
+                const line = document.createElement("div");
+                line.textContent = `> ${code} [${key}]`;
+                simList.prepend(line);
+                playBeep(document.getElementById("usbBeep").checked);
+                return true;
+            }
+
+            const escaped = escapeAndroidInputText(code);
+            let cmd = `input text ${escaped} 2>&1`;
+            if (key === "ENTER") cmd += " && input keyevent 66 2>&1";
+            else if (key === "TAB") cmd += " && input keyevent 61 2>&1";
+
+            const out = (await adb.shell(cmd)).trim();
+            if (out && /Exception|SecurityException|Error|INJECT_EVENTS|denied/i.test(out)) {
+                throw new Error(out);
+            }
+            playBeep(document.getElementById("usbBeep").checked);
+            return true;
+        }
+
+        async function executeUsbStep() {
+            if (curRow >= items.length) return false;
+            const it = items[curRow];
+            const attemptNum = curRepeat + 1;
+            try {
+                await sendOneUsbBarcode(it.code);
+                it.done++;
+                curRepeat++;
+                addLog(`Đã bắn USB: ${it.code} (${attemptNum}/${it.qty})`, "ok");
+                if (curRepeat >= it.qty) { curRow++; curRepeat = 0; }
+                renderAll();
+                return true;
+            } catch (err) {
+                addLog(`LỖI ANDROID tại ${it.code} (${attemptNum}/${it.qty}):\n${err.message}`, "err");
+                isRunning = false;
+                isPaused = true;
+                stopFlag = true;
+                renderAll();
+                return false;
+            }
+        }
+
+        document.getElementById("btnUsbStart").onclick = async () => {
+            if (isRunning || isFinished() || items.length === 0) return;
+            isRunning = true;
+            isPaused = false;
+            stopFlag = false;
+            renderAll();
+
+            const delay = Math.max(100, parseInt(document.getElementById("usbDelayMs").value, 10) || 500);
+            while (isRunning && !stopFlag && curRow < items.length) {
+                const ok = await executeUsbStep();
+                if (!ok || stopFlag || curRow >= items.length) break;
+                await cancellableSleep(delay);
+            }
+
+            isRunning = false;
+            if (curRow >= items.length) {
+                isPaused = false;
+                addLog("🎉 HOÀN THÀNH TOÀN BỘ DANH SÁCH!", "ok");
+            } else {
+                isPaused = true;
+                addLog("Đã tạm dừng. Bấm Tiếp tục để bắn tiếp.", "info");
+            }
+            renderAll();
+        };
+
+        document.getElementById("btnUsbPause").onclick = pauseAnyMode;
+        document.getElementById("btnUsbStep").onclick = async () => {
+            if (isRunning || isFinished() || items.length === 0) return;
+            isPaused = true;
+            await executeUsbStep();
+        };
+        document.getElementById("btnUsbReset").onclick = resetAllProgress;
+
         renderAll();
-      }
-    };
-
-    btnDisconnectUsb.onclick = async () => {
-      if (isRunning && activeTab === "usb") pauseAnyMode();
-      await adb.disconnect();
-      setUsbUiDisconnected("Đã ngắt kết nối.");
-      addLog("Đã ngắt kết nối WebUSB.", "info");
-      renderAll();
-    };
-
-    async function sendOneUsbBarcode(code) {
-      const key = document.getElementById("usbEndKey").value;
-      if (usbSim.checked) {
-        simInput.value = code;
-        const line = document.createElement("div");
-        line.textContent = `> ${code} [${key}]`;
-        simList.prepend(line);
-        playBeep(document.getElementById("usbBeep").checked);
-        return true;
-      }
-
-      const escaped = escapeAndroidInputText(code);
-      let cmd = `input text ${escaped} 2>&1`;
-      if (key === "ENTER") cmd += " && input keyevent 66 2>&1";
-      else if (key === "TAB") cmd += " && input keyevent 61 2>&1";
-
-      const out = (await adb.shell(cmd)).trim();
-      if (out && /Exception|SecurityException|Error|INJECT_EVENTS|denied/i.test(out)) {
-        throw new Error(out);
-      }
-      playBeep(document.getElementById("usbBeep").checked);
-      return true;
-    }
-
-    async function executeUsbStep() {
-      if (curRow >= items.length) return false;
-      const it = items[curRow];
-      const attemptNum = curRepeat + 1;
-      try {
-        await sendOneUsbBarcode(it.code);
-        it.done++;
-        curRepeat++;
-        addLog(`Đã bắn USB: ${it.code} (${attemptNum}/${it.qty})`, "ok");
-        if (curRepeat >= it.qty) { curRow++; curRepeat = 0; }
-        renderAll();
-        return true;
-      } catch (err) {
-        addLog(`LỖI ANDROID tại ${it.code} (${attemptNum}/${it.qty}):\n${err.message}`, "err");
-        isRunning = false;
-        isPaused = true;
-        stopFlag = true;
-        renderAll();
-        return false;
-      }
-    }
-
-    document.getElementById("btnUsbStart").onclick = async () => {
-      if (isRunning || isFinished() || items.length === 0) return;
-      isRunning = true;
-      isPaused = false;
-      stopFlag = false;
-      renderAll();
-
-      const delay = Math.max(100, parseInt(document.getElementById("usbDelayMs").value, 10) || 500);
-      while (isRunning && !stopFlag && curRow < items.length) {
-        const ok = await executeUsbStep();
-        if (!ok || stopFlag || curRow >= items.length) break;
-        await cancellableSleep(delay);
-      }
-
-      isRunning = false;
-      if (curRow >= items.length) {
-        isPaused = false;
-        addLog("🎉 HOÀN THÀNH TOÀN BỘ DANH SÁCH!", "ok");
-      } else {
-        isPaused = true;
-        addLog("Đã tạm dừng. Bấm Tiếp tục để bắn tiếp.", "info");
-      }
-      renderAll();
-    };
-
-    document.getElementById("btnUsbPause").onclick = pauseAnyMode;
-    document.getElementById("btnUsbStep").onclick = async () => {
-      if (isRunning || isFinished() || items.length === 0) return;
-      isPaused = true;
-      await executeUsbStep();
-    };
-    document.getElementById("btnUsbReset").onclick = resetAllProgress;
-
-    renderAll();
-  </script>
+    </script>
 </body>
+
 </html>
